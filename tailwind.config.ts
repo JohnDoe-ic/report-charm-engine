@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['JetBrains Mono', 'monospace'],
+        body: ['Inter', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -56,6 +60,21 @@ export default {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
+        },
+        status: {
+          open: "hsl(var(--status-open))",
+          contract: "hsl(var(--status-contract))",
+          evaluation: "hsl(var(--status-evaluation))",
+          "no-rent": "hsl(var(--status-no-rent))",
+          rejected: "hsl(var(--status-rejected))",
+          other: "hsl(var(--status-other))",
+        },
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
         },
       },
       borderRadius: {
