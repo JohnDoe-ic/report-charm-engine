@@ -16,19 +16,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 
 interface DataTableProps {
   data: SalonLocation[];
 }
 
-const statusBadgeVariant: Record<StatusKey, string> = {
-  open: 'bg-status-open/15 text-status-open border-status-open/30',
-  contract: 'bg-status-contract/15 text-status-contract border-status-contract/30',
-  evaluation: 'bg-status-evaluation/15 text-status-evaluation border-status-evaluation/30',
-  'no-rent': 'bg-status-no-rent/15 text-status-no-rent border-status-no-rent/30',
-  rejected: 'bg-status-rejected/15 text-status-rejected border-status-rejected/30',
-  other: 'bg-status-other/15 text-status-other border-status-other/30',
+const statusBadgeStyles: Record<StatusKey, string> = {
+  open: 'bg-[hsl(140,55%,45%,0.15)] text-[hsl(140,55%,55%)] border-[hsl(140,55%,45%,0.3)]',
+  contract: 'bg-[hsl(175,70%,42%,0.15)] text-[hsl(175,70%,52%)] border-[hsl(175,70%,42%,0.3)]',
+  evaluation: 'bg-[hsl(38,90%,55%,0.15)] text-[hsl(38,90%,60%)] border-[hsl(38,90%,55%,0.3)]',
+  'no-rent': 'bg-[hsl(225,10%,40%,0.15)] text-[hsl(225,10%,55%)] border-[hsl(225,10%,40%,0.3)]',
+  rejected: 'bg-[hsl(0,65%,48%,0.15)] text-[hsl(0,65%,58%)] border-[hsl(0,65%,48%,0.3)]',
+  other: 'bg-[hsl(270,50%,55%,0.15)] text-[hsl(270,50%,65%)] border-[hsl(270,50%,55%,0.3)]',
 };
 
 const DataTable = ({ data }: DataTableProps) => {
@@ -66,98 +65,89 @@ const DataTable = ({ data }: DataTableProps) => {
 
   return (
     <div className="dashboard-section">
-      <h3 className="text-lg font-semibold mb-4 font-display">Сводная таблица</h3>
+      <div className="flex items-center justify-between mb-4">
+        <p className="section-title mb-0">Сводная таблица</p>
+        <span className="text-xs text-muted-foreground font-display">
+          {filtered.length} / {data.length}
+        </span>
+      </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         <Select value={regionFilter} onValueChange={(v) => { setRegionFilter(v); setCityFilter('all'); }}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[140px] h-8 text-xs bg-secondary border-border">
             <SelectValue placeholder="Регион" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все регионы</SelectItem>
-            {regions.map((r) => (
-              <SelectItem key={r} value={r}>{r}</SelectItem>
-            ))}
+            {regions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
           </SelectContent>
         </Select>
 
         <Select value={cityFilter} onValueChange={setCityFilter}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[140px] h-8 text-xs bg-secondary border-border">
             <SelectValue placeholder="Город" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все города</SelectItem>
-            {cities.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
+            {cities.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[160px] h-8 text-xs bg-secondary border-border">
             <SelectValue placeholder="Статус" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все статусы</SelectItem>
-            {statuses.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
+            {statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
 
         <Select value={formatFilter} onValueChange={setFormatFilter}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[140px] h-8 text-xs bg-secondary border-border">
             <SelectValue placeholder="Формат" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все форматы</SelectItem>
-            {formats.map((f) => (
-              <SelectItem key={f} value={f}>{f}</SelectItem>
-            ))}
+            {formats.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
           </SelectContent>
         </Select>
 
         <Input
-          placeholder="Поиск по адресу..."
+          placeholder="Поиск..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-[200px]"
+          className="w-[160px] h-8 text-xs bg-secondary border-border"
         />
-
-        <span className="text-sm text-muted-foreground self-center ml-auto">
-          Найдено: {filtered.length}
-        </span>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border overflow-auto max-h-[500px]">
+      <div className="rounded-md border overflow-auto max-h-[450px]">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="sticky top-0 bg-card">Регион</TableHead>
-              <TableHead className="sticky top-0 bg-card">Город</TableHead>
-              <TableHead className="sticky top-0 bg-card">Адрес</TableHead>
-              <TableHead className="sticky top-0 bg-card">Формат</TableHead>
-              <TableHead className="sticky top-0 bg-card">Статус</TableHead>
-              <TableHead className="sticky top-0 bg-card">Комментарий</TableHead>
+            <TableRow className="border-border hover:bg-transparent">
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Регион</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Город</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Адрес</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Формат</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Статус</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Комментарий</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((row) => {
               const { key, label } = normalizeStatus(row.status);
               return (
-                <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.region}</TableCell>
-                  <TableCell>{row.city}</TableCell>
-                  <TableCell className="max-w-[250px] truncate">{row.address}</TableCell>
-                  <TableCell>{row.salonFormat}</TableCell>
+                <TableRow key={row.id} className="border-border/50 hover:bg-secondary/50">
+                  <TableCell className="text-xs font-medium">{row.region}</TableCell>
+                  <TableCell className="text-xs">{row.city}</TableCell>
+                  <TableCell className="text-xs max-w-[220px] truncate">{row.address}</TableCell>
+                  <TableCell className="text-xs">{row.salonFormat}</TableCell>
                   <TableCell>
-                    <span className={`status-badge border ${statusBadgeVariant[key]}`}>
+                    <span className={`status-badge border ${statusBadgeStyles[key]}`}>
                       {label}
                     </span>
                   </TableCell>
-                  <TableCell className="max-w-[300px] truncate text-muted-foreground text-sm">
+                  <TableCell className="text-xs max-w-[250px] truncate text-muted-foreground">
                     {row.comment}
                   </TableCell>
                 </TableRow>

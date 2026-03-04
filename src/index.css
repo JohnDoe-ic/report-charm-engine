@@ -2,103 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 25% 10%;
+    --background: 225 25% 6%;
+    --foreground: 220 15% 85%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
+    --card: 225 22% 9%;
+    --card-foreground: 220 15% 88%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
+    --popover: 225 22% 11%;
+    --popover-foreground: 220 15% 88%;
 
-    --primary: 190 80% 35%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 175 70% 42%;
+    --primary-foreground: 225 25% 6%;
 
-    --secondary: 220 15% 92%;
-    --secondary-foreground: 220 25% 10%;
+    --secondary: 225 18% 14%;
+    --secondary-foreground: 220 15% 75%;
 
-    --muted: 220 15% 94%;
-    --muted-foreground: 220 10% 50%;
+    --muted: 225 18% 12%;
+    --muted-foreground: 220 10% 45%;
 
-    --accent: 35 90% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 38 90% 55%;
+    --accent-foreground: 225 25% 6%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 65% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 88%;
-    --input: 220 15% 88%;
-    --ring: 190 80% 35%;
+    --border: 225 15% 15%;
+    --input: 225 15% 15%;
+    --ring: 175 70% 42%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    --chart-1: 190 80% 35%;
-    --chart-2: 35 90% 55%;
-    --chart-3: 150 60% 40%;
-    --chart-4: 0 72% 51%;
-    --chart-5: 260 50% 55%;
+    --chart-1: 175 70% 42%;
+    --chart-2: 38 90% 55%;
+    --chart-3: 140 55% 45%;
+    --chart-4: 0 65% 48%;
+    --chart-5: 270 50% 55%;
+    --chart-6: 200 70% 50%;
 
-    --status-open: 150 60% 40%;
-    --status-contract: 190 80% 35%;
-    --status-evaluation: 35 90% 55%;
-    --status-no-rent: 220 10% 50%;
-    --status-rejected: 0 72% 51%;
-    --status-other: 260 50% 55%;
+    --status-open: 140 55% 45%;
+    --status-contract: 175 70% 42%;
+    --status-evaluation: 38 90% 55%;
+    --status-no-rent: 225 10% 40%;
+    --status-rejected: 0 65% 48%;
+    --status-other: 270 50% 55%;
+    --status-looking: 200 70% 50%;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 225 22% 9%;
+    --sidebar-foreground: 220 15% 85%;
+    --sidebar-primary: 175 70% 42%;
+    --sidebar-primary-foreground: 225 25% 6%;
+    --sidebar-accent: 225 18% 14%;
+    --sidebar-accent-foreground: 220 15% 75%;
+    --sidebar-border: 225 15% 15%;
+    --sidebar-ring: 175 70% 42%;
 
-    --font-display: 'JetBrains Mono', monospace;
+    --font-display: 'IBM Plex Mono', monospace;
     --font-body: 'Inter', sans-serif;
-  }
 
-  .dark {
-    --background: 220 25% 8%;
-    --foreground: 220 15% 90%;
-
-    --card: 220 22% 12%;
-    --card-foreground: 220 15% 90%;
-
-    --popover: 220 22% 12%;
-    --popover-foreground: 220 15% 90%;
-
-    --primary: 190 80% 45%;
-    --primary-foreground: 220 25% 8%;
-
-    --secondary: 220 20% 18%;
-    --secondary-foreground: 220 15% 90%;
-
-    --muted: 220 20% 16%;
-    --muted-foreground: 220 10% 55%;
-
-    --accent: 35 90% 55%;
-    --accent-foreground: 220 25% 8%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 220 20% 18%;
-    --input: 220 20% 18%;
-    --ring: 190 80% 45%;
-
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --glow-primary: 0 0 20px hsl(175 70% 42% / 0.15);
+    --glow-accent: 0 0 20px hsl(38 90% 55% / 0.15);
   }
 }
 
@@ -108,18 +74,39 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
   }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
 }
 
 @layer components {
   .stat-card {
-    @apply rounded-xl border bg-card p-5 shadow-sm transition-all duration-200 hover:shadow-md;
+    @apply rounded-lg border bg-card p-5 transition-all duration-300;
+    box-shadow: var(--glow-primary);
+  }
+  .stat-card:hover {
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 0 30px hsl(175 70% 42% / 0.1);
   }
 
   .stat-value {
@@ -128,14 +115,29 @@
   }
 
   .stat-label {
-    @apply text-sm font-medium text-muted-foreground uppercase tracking-wider;
+    @apply text-xs font-medium text-muted-foreground uppercase tracking-widest;
   }
 
   .status-badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border;
   }
 
   .dashboard-section {
-    @apply rounded-xl border bg-card p-6 shadow-sm;
+    @apply rounded-lg border bg-card p-5;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    @apply text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-4;
+  }
+
+  .sheet-tab {
+    @apply px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 cursor-pointer;
+  }
+  .sheet-tab-active {
+    @apply bg-primary text-primary-foreground;
+  }
+  .sheet-tab-inactive {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
   }
 }

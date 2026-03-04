@@ -25,37 +25,40 @@ export function parseExcelFile(data: ArrayBuffer): SalonLocation[] {
     }
     if (headerIdx === -1) continue;
 
-    // Detect column indices
     const colMap: Record<string, number> = {};
-    headers.forEach((h, i) => { colMap[h] = i; });
+    headers.forEach((h, i) => { if (h) colMap[h] = i; });
 
     const getCol = (name: string) => colMap[name] ?? -1;
+    const getVal = (row: string[], name: string) => {
+      const idx = getCol(name);
+      return idx !== -1 ? row[idx] || '' : '';
+    };
     const hasDistrict = getCol('Район') !== -1;
     const hasSettlement = getCol('Поселок') !== -1;
 
-    // Parse data rows (skip header + empty row after it)
-    for (let r = headerIdx + 2; r < rows.length; r++) {
+    for (let r = headerIdx + 1; r < rows.length; r++) {
       const row = rows[r].map(c => String(c).trim());
-      const region = row[getCol('Регион')] || '';
-      const city = row[getCol('Город')] || '';
+      const region = getVal(row, 'Регион');
+      const city = getVal(row, 'Город');
+      const status = getVal(row, 'Статус');
+      const address = getVal(row, 'Адрес');
       
-      if (!region && !city) continue; // skip empty rows
-
-      const addressCol = getCol('Адрес');
-      const address = addressCol !== -1 ? row[addressCol] : '';
+      // Skip rows without meaningful data
+      if (!region && !city) continue;
+      if (!status && !address) continue;
 
       const loc: SalonLocation = {
         id: `loc-${idCounter++}`,
         region,
         city,
-        district: hasDistrict ? row[getCol('Район')] : undefined,
-        settlement: hasSettlement ? row[getCol('Поселок')] : undefined,
+        district: hasDistrict ? getVal(row, 'Район') : undefined,
+        settlement: hasSettlement ? getVal(row, 'Поселок') : undefined,
         address,
-        commercialPartner: row[getCol('Коммерческий партнер')] || undefined,
-        salonFormat: row[getCol('Формат салона')] || '',
-        status: row[getCol('Статус')] || '',
-        comment: row[getCol('Комментарий')] || undefined,
-        openingDate: row[getCol('Дата открытия')] || undefined,
+        commercialPartner: getVal(row, 'Коммерческий партнер') || undefined,
+        salonFormat: getVal(row, 'Формат салона') || '',
+        status: status || 'не указан',
+        comment: getVal(row, 'Комментарий') || undefined,
+        openingDate: getVal(row, 'Дата открытия') || undefined,
         sheetName,
       };
 

@@ -1,5 +1,5 @@
 import { SalonLocation, normalizeStatus } from '@/lib/types';
-import { Building2, MapPin, FileCheck, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Building2, MapPin, FileCheck, Search, CheckCircle } from 'lucide-react';
 
 interface StatCardsProps {
   data: SalonLocation[];
@@ -13,22 +13,22 @@ const StatCards = ({ data }: StatCardsProps) => {
   const evaluationCount = data.filter((d) => normalizeStatus(d.status).key === 'evaluation').length;
 
   const cards = [
-    { label: 'Всего локаций', value: total, icon: Building2, color: 'text-primary' },
-    { label: 'Городов', value: cities, icon: MapPin, color: 'text-accent' },
-    { label: 'Открыто', value: openCount, icon: CheckCircle, color: 'text-status-open' },
-    { label: 'На договоре', value: contractCount, icon: FileCheck, color: 'text-status-contract' },
-    { label: 'На оценке', value: evaluationCount, icon: AlertTriangle, color: 'text-status-evaluation' },
+    { label: 'Локаций', value: total, icon: Building2, accent: 'text-primary' },
+    { label: 'Городов', value: cities, icon: MapPin, accent: 'text-accent' },
+    { label: 'Открыто', value: openCount, icon: CheckCircle, accent: 'text-status-open' },
+    { label: 'На договоре', value: contractCount, icon: FileCheck, accent: 'text-status-contract' },
+    { label: 'Оценка', value: evaluationCount, icon: Search, accent: 'text-status-evaluation' },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {cards.map((card) => (
         <div key={card.label} className="stat-card">
-          <div className="flex items-center justify-between mb-3">
-            <card.icon className={`h-5 w-5 ${card.color}`} />
+          <div className="flex items-center gap-2 mb-3">
+            <card.icon className={`h-4 w-4 ${card.accent}`} />
+            <span className="stat-label">{card.label}</span>
           </div>
-          <p className="stat-value">{card.value}</p>
-          <p className="stat-label mt-1">{card.label}</p>
+          <p className={`stat-value ${card.accent}`}>{card.value}</p>
         </div>
       ))}
     </div>
