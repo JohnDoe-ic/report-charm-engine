@@ -1,4 +1,5 @@
 import { SalonLocation, normalizeStatus } from '@/lib/types';
+import { DrillDownContext } from './DrillDownDrawer';
 import {
   PieChart,
   Pie,
@@ -13,6 +14,7 @@ import {
 
 interface StatusChartProps {
   data: SalonLocation[];
+  onDrillDown?: (context: DrillDownContext) => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -36,7 +38,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-const StatusChart = ({ data }: StatusChartProps) => {
+const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
   const statusMap = new Map<string, { count: number; key: string }>();
   data.forEach((d) => {
     const { label, key } = normalizeStatus(d.status);
@@ -47,7 +49,6 @@ const StatusChart = ({ data }: StatusChartProps) => {
     .map(([name, { count, key }]) => ({ name, value: count, key }))
     .sort((a, b) => b.value - a.value);
 
-  // City distribution (top 12)
   const cityMap = new Map<string, number>();
   data.forEach((d) => {
     if (d.city) cityMap.set(d.city, (cityMap.get(d.city) || 0) + 1);
@@ -56,6 +57,33 @@ const StatusChart = ({ data }: StatusChartProps) => {
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 12);
+
+  const handlePieClick = (entry: any) => {
+    if (!onDrillDown) return;
+    const rows = data.filter((d) => normalizeStatus(d.status).label === entry.name);
+    onDrillDown({
+      title: `Статус: ${entry.name}`,
+      description: `Все локации со статусом "${entry.name}"`,
+      columns: [{ axis: 'Категория', field: 'Статус' }],
+      aggregation: 'Количество (count)',
+      filters: [{ field: 'Статус', value: entry.name }],
+      rows,
+    });
+  };
+
+  const handleBarClick = (entry: any) => {
+    if (!onDrillDown) return;
+    const cityName = entry.name;
+    const rows = data.filter((d) => d.city === cityName);
+    onDrillDown({
+      title: `Город: ${cityName}`,
+      description: `Все локации в городе "${cityName}"`,
+      columns: [{ axis: 'Y', field: 'Город' }, { axis: 'X', field: 'Количество' }],
+      aggregation: 'Количество (count)',
+      filters: [{ field: 'Город', value: cityName }],
+      rows,
+    });
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -72,6 +100,8 @@ const StatusChart = ({ data }: StatusChartProps) => {
               paddingAngle={2}
               dataKey="value"
               strokeWidth={0}
+              onClick={handlePieClick}
+              className="cursor-pointer"
             >
               {statusData.map((entry) => (
                 <Cell key={entry.name} fill={STATUS_COLORS[entry.key] || STATUS_COLORS['other']} />
@@ -80,10 +110,13 @@ const StatusChart = ({ data }: StatusChartProps) => {
             <Tooltip content={<CustomTooltip />} />
           </PieChart>
         </ResponsiveContainer>
-        {/* Legend */}
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
           {statusData.map((entry) => (
-            <div key={entry.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div
+              key={entry.name}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+              onClick={() => handlePieClick(entry)}
+            >
               <span
                 className="w-2.5 h-2.5 rounded-sm shrink-0"
                 style={{ backgroundColor: STATUS_COLORS[entry.key] || STATUS_COLORS['other'] }}
@@ -101,7 +134,14 @@ const StatusChart = ({ data }: StatusChartProps) => {
             <XAxis type="number" tick={{ fill: 'hsl(220,10%,45%)', fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" width={90} tick={{ fill: 'hsl(220,15%,70%)', fontSize: 11 }} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="value" fill="hsl(175, 70%, 42%)" radius={[0, 3, 3, 0]} barSize={16} />
+            <Bar
+              dataKey="value"
+              fill="hsl(175, 70%, 42%)"
+              radius={[0, 3, 3, 0]}
+              barSize={16}
+              onClick={handleBarClick}
+              className="cursor-pointer"
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

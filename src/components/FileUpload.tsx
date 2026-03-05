@@ -2,14 +2,14 @@ import { useCallback } from 'react';
 import { Upload, FileSpreadsheet } from 'lucide-react';
 
 interface FileUploadProps {
-  onFileLoaded: (data: ArrayBuffer) => void;
+  onFileLoaded: (data: ArrayBuffer, fileName: string, fileSize: number) => void;
 }
 
 const FileUpload = ({ onFileLoaded }: FileUploadProps) => {
   const readFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      if (e.target?.result) onFileLoaded(e.target.result as ArrayBuffer);
+      if (e.target?.result) onFileLoaded(e.target.result as ArrayBuffer, file.name, file.size);
     };
     reader.readAsArrayBuffer(file);
   };
@@ -41,7 +41,7 @@ const FileUpload = ({ onFileLoaded }: FileUploadProps) => {
         onClick={() => {
           const input = document.createElement('input');
           input.type = 'file';
-          input.accept = '.xlsx,.xls';
+          input.accept = '.xlsx,.xls,.csv';
           input.onchange = (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
             if (file) readFile(file);
@@ -51,7 +51,7 @@ const FileUpload = ({ onFileLoaded }: FileUploadProps) => {
       >
         <Upload className="h-8 w-8 text-muted-foreground" />
         <span className="text-sm text-muted-foreground">
-          .xlsx · .xls
+          .xlsx · .xls · .csv
         </span>
       </div>
     </div>
