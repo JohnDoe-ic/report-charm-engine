@@ -1,4 +1,5 @@
 import { SalonLocation, normalizeStatus } from '@/lib/types';
+import { DrillDownContext } from './DrillDownDrawer';
 import {
   BarChart,
   Bar,
@@ -11,6 +12,7 @@ import {
 
 interface FormatChartProps {
   data: SalonLocation[];
+  onDrillDown?: (context: DrillDownContext) => void;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -30,7 +32,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-const FormatChart = ({ data }: FormatChartProps) => {
+const FormatChart = ({ data, onDrillDown }: FormatChartProps) => {
   const formatStatusMap = new Map<string, Record<string, number>>();
   data.forEach((d) => {
     const format = (d.salonFormat || 'Не указан').toLowerCase();
@@ -57,19 +59,32 @@ const FormatChart = ({ data }: FormatChartProps) => {
     { key: 'other', label: 'Прочее', color: 'hsl(270, 50%, 55%)' },
   ];
 
+  const handleClick = (e: any) => {
+    if (!onDrillDown || !e?.activePayload) return;
+    const payload = e.activePayload[0]?.payload;
+    if (!payload?.format) return;
+    const rows = data.filter((d) => (d.salonFormat || 'Не указан').toLowerCase() === payload.format);
+    onDrillDown({
+      title: `Формат: ${payload.format}`,
+      description: `Все локации формата "${payload.format}" с разбивкой по статусам`,
+      columns: [{ axis: 'X', field: 'Формат салона' }, { axis: 'Y', field: 'Количество' }, { axis: 'Серия', field: 'Статус' }],
+      aggregation: 'Количество (count) по статусам (stacked)',
+      filters: [{ field: 'Формат', value: payload.format }],
+      rows,
+    });
+  };
+
   return (
     <div className="dashboard-section">
       <p className="section-title">Форматы × Статусы</p>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData} margin={{ bottom: 5 }}>
+        <BarChart data={chartData} margin={{ bottom: 5 }} onClick={handleClick}>
           <XAxis dataKey="format" tick={{ fill: 'hsl(220,15%,70%)', fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fill: 'hsl(220,10%,45%)', fontSize: 11 }} axisLine={false} tickLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend
-            wrapperStyle={{ fontSize: 11, color: 'hsl(220,10%,45%)' }}
-          />
+          <Legend wrapperStyle={{ fontSize: 11, color: 'hsl(220,10%,45%)' }} />
           {statusConfig.map(({ key, label, color }) => (
-            <Bar key={key} dataKey={key} name={label} stackId="a" fill={color} />
+            <Bar key={key} dataKey={key} name={label} stackId="a" fill={color} className="cursor-pointer" />
           ))}
         </BarChart>
       </ResponsiveContainer>

@@ -1,0 +1,201 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import * as XLSX from 'https://esm.sh/xlsx@0.18.5'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+interface SalonLocation {
+  id: string;
+  region: string;
+  city: string;
+  district?: string;
+  settlement?: string;
+  address: string;
+  commercialPartner?: string;
+  salonFormat: string;
+  status: string;
+  comment?: string;
+  openingDate?: string;
+  sheetName: string;
+}
+
+function parseExcelBuffer(data: ArrayBuffer): SalonLocation[] {
+  const workbook = XLSX.read(data, { type: 'array' });
+  const allLocations: SalonLocation[] = [];
+  let idCounter = 0;
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    if (rows.length < 3) continue;
+
+    let headerIdx = -1;
+    let headers: string[] = [];
+    for (let i = 0; i < Math.min(5, rows.length); i++) {
+      const row = rows[i].map(c => String(c).trim());
+      if (row.includes('Регион')) { headerIdx = i; headers = row; break; }
+    }
+    if (headerIdx === -1) continue;
+
+    const colMap: Record<string, number> = {};
+    headers.forEach((h, i) => { if (h) colMap[h] = i; });
+    const getCol = (name: string) => colMap[name] ?? -1;
+    const getVal = (row: string[], name: string) => {
+      const idx = getCol(name);
+      return idx !== -1 ? row[idx] || '' : '';
+    };
+
+    for (let r = headerIdx + 1; r < rows.length; r++) {
+      const row = rows[r].map(c => String(c).trim());
+      const region = getVal(row, 'Регион');
+      const city = getVal(row, 'Город');
+      const status = getVal(row, 'Статус');
+      const address = getVal(row, 'Адрес');
+      if (!region && !city) continue;
+      if (!status && !address) continue;
+
+      allLocations.push({
+        id: `loc-${idCounter++}`,
+        region, city, address,
+        district: getVal(row, 'Район') || undefined,
+        settlement: getVal(row, 'Поселок') || undefined,
+        commercialPartner: getVal(row, 'Коммерческий партнер') || undefined,
+        salonFormat: getVal(row, 'Формат салона') || '',
+        status: status || 'не указан',
+        comment: getVal(row, 'Комментарий') || undefined,
+        openingDate: getVal(row, 'Дата открытия') || undefined,
+        sheetName,
+      });
+    }
+  }
+  return allLocations;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN');
+  if (!BOT_TOKEN) {
+    return new Response(JSON.stringify({ error: 'TELEGRAM_BOT_TOKEN not set' }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  try {
+    const update = await req.json();
+    const message = update?.message;
+    if (!message) {
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const chatId = message.chat.id;
+    const username = message.from?.username || message.from?.first_name || 'unknown';
+    const doc = message.document;
+
+    if (!doc) {
+      // Send help message
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: '📊 Отправьте Excel-файл (.xlsx/.xls), и я создам для вас интерактивный дашборд с графиками.',
+        }),
+      });
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Download file from Telegram
+    const fileInfoRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${doc.file_id}`);
+    const fileInfo = await fileInfoRes.json();
+    const filePath = fileInfo.result?.file_path;
+    if (!filePath) throw new Error('Cannot get file path');
+
+    const fileRes = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`);
+    const fileBuffer = await fileRes.arrayBuffer();
+
+    // Parse Excel
+    const locations = parseExcelBuffer(fileBuffer);
+    if (locations.length === 0) {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: '❌ Не удалось распарсить файл. Убедитесь, что это Excel с колонками "Регион", "Город", "Статус".',
+        }),
+      });
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Save to DB
+    const { data: report, error: reportError } = await supabase
+      .from('reports')
+      .insert({
+        file_name: doc.file_name || 'telegram-upload.xlsx',
+        file_size: doc.file_size || 0,
+        file_type: 'xlsx',
+        source: 'telegram',
+        telegram_chat_id: String(chatId),
+        telegram_username: username,
+      })
+      .select('id, share_id')
+      .single();
+
+    if (reportError) throw reportError;
+
+    // Insert rows
+    const batchSize = 500;
+    for (let i = 0; i < locations.length; i += batchSize) {
+      const batch = locations.slice(i, i + batchSize).map((loc, idx) => ({
+        report_id: report.id,
+        sheet_name: loc.sheetName,
+        row_index: i + idx,
+        data: loc,
+      }));
+      await supabase.from('report_rows').insert(batch);
+    }
+
+    // Get the app URL from env or construct it
+    const APP_URL = Deno.env.get('APP_URL') || 'https://report-charm-engine.lovable.app';
+
+    const shareUrl = `${APP_URL}/r/${report.share_id}`;
+
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: `✅ Дашборд готов! ${locations.length} локаций из файла "${doc.file_name}"`,
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '📊 Открыть графики', url: shareUrl }
+          ]]
+        }
+      }),
+    });
+
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Telegram bot error:', error);
+    return new Response(JSON.stringify({ error: String(error) }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+});
