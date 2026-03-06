@@ -7,6 +7,8 @@ import StatCards from '@/components/StatCards';
 import StatusChart from '@/components/StatusChart';
 import FormatChart from '@/components/FormatChart';
 import RegionBreakdown from '@/components/RegionBreakdown';
+import OpeningTimeline from '@/components/OpeningTimeline';
+import RegionStatusHeatmap from '@/components/RegionStatusHeatmap';
 import DataTable from '@/components/DataTable';
 import SheetTabs from '@/components/SheetTabs';
 import DrillDownDrawer, { DrillDownContext } from '@/components/DrillDownDrawer';
@@ -28,7 +30,6 @@ const Index = () => {
     setActiveSheet('all');
     setSavedReport(null);
 
-    // Save to DB
     setSaving(true);
     try {
       const report = await saveReport(fileName, fileSize, locations);
@@ -87,6 +88,7 @@ const Index = () => {
               )}
               {savedReport && (
                 <button
+                  type="button"
                   onClick={handleCopyLink}
                   className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
                 >
@@ -98,6 +100,7 @@ const Index = () => {
                 {filteredData.length} локаций
               </span>
               <button
+                type="button"
                 onClick={() => { setAllData(null); setActiveSheet('all'); setSavedReport(null); }}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -122,6 +125,10 @@ const Index = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <RegionBreakdown data={filteredData} onDrillDown={handleDrillDown} />
               <FormatChart data={filteredData} onDrillDown={handleDrillDown} />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <OpeningTimeline data={filteredData} onDrillDown={handleDrillDown} />
+              <RegionStatusHeatmap data={filteredData} onDrillDown={handleDrillDown} />
             </div>
             <DataTable data={filteredData} />
           </>

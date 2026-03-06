@@ -1,5 +1,6 @@
 import { SalonLocation, normalizeStatus } from '@/lib/types';
 import { DrillDownContext } from './DrillDownDrawer';
+import { exportChartToExcel } from '@/lib/chartExport';
 import {
   PieChart,
   Pie,
@@ -11,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { Download } from 'lucide-react';
 
 interface StatusChartProps {
   data: SalonLocation[];
@@ -58,7 +60,22 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
     .sort((a, b) => b.value - a.value)
     .slice(0, 12);
 
-  const handlePieClick = (entry: any) => {
+  const handlePieClick = (_: any, index: number) => {
+    if (!onDrillDown) return;
+    const entry = statusData[index];
+    if (!entry) return;
+    const rows = data.filter((d) => normalizeStatus(d.status).label === entry.name);
+    onDrillDown({
+      title: `Статус: ${entry.name}`,
+      description: `Все локации со статусом "${entry.name}"`,
+      columns: [{ axis: 'Категория', field: 'Статус' }],
+      aggregation: 'Количество (count)',
+      filters: [{ field: 'Статус', value: entry.name }],
+      rows,
+    });
+  };
+
+  const handleLegendClick = (entry: typeof statusData[0]) => {
     if (!onDrillDown) return;
     const rows = data.filter((d) => normalizeStatus(d.status).label === entry.name);
     onDrillDown({
@@ -71,9 +88,9 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
     });
   };
 
-  const handleBarClick = (entry: any) => {
-    if (!onDrillDown) return;
-    const cityName = entry.name;
+  const handleBarClick = (barData: any) => {
+    if (!onDrillDown || !barData?.name) return;
+    const cityName = barData.name;
     const rows = data.filter((d) => d.city === cityName);
     onDrillDown({
       title: `Город: ${cityName}`,
@@ -88,7 +105,17 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="dashboard-section">
-        <p className="section-title">Статусы</p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="section-title mb-0">Статусы</p>
+          <button
+            type="button"
+            onClick={() => exportChartToExcel(statusData.map(s => ({ Статус: s.name, Количество: s.value })), 'statuses')}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Download className="h-3 w-3" />
+            Excel
+          </button>
+        </div>
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie
@@ -101,7 +128,7 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
               dataKey="value"
               strokeWidth={0}
               onClick={handlePieClick}
-              className="cursor-pointer"
+              style={{ cursor: 'pointer' }}
             >
               {statusData.map((entry) => (
                 <Cell key={entry.name} fill={STATUS_COLORS[entry.key] || STATUS_COLORS['other']} />
@@ -112,23 +139,34 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
         </ResponsiveContainer>
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
           {statusData.map((entry) => (
-            <div
+            <button
+              type="button"
               key={entry.name}
               className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-              onClick={() => handlePieClick(entry)}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLegendClick(entry); }}
             >
               <span
                 className="w-2.5 h-2.5 rounded-sm shrink-0"
                 style={{ backgroundColor: STATUS_COLORS[entry.key] || STATUS_COLORS['other'] }}
               />
               {entry.name} ({entry.value})
-            </div>
+            </button>
           ))}
         </div>
       </div>
 
       <div className="dashboard-section">
-        <p className="section-title">Топ городов</p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="section-title mb-0">Топ городов</p>
+          <button
+            type="button"
+            onClick={() => exportChartToExcel(cityData.map(c => ({ Город: c.name, Количество: c.value })), 'top-cities')}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Download className="h-3 w-3" />
+            Excel
+          </button>
+        </div>
         <ResponsiveContainer width="100%" height={320}>
           <BarChart data={cityData} layout="vertical" margin={{ left: 5, right: 15 }}>
             <XAxis type="number" tick={{ fill: 'hsl(220,10%,45%)', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -140,7 +178,7 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
               radius={[0, 3, 3, 0]}
               barSize={16}
               onClick={handleBarClick}
-              className="cursor-pointer"
+              style={{ cursor: 'pointer' }}
             />
           </BarChart>
         </ResponsiveContainer>
