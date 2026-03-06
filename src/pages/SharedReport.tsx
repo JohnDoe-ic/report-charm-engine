@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { loadReport } from '@/lib/reportService';
 import { SalonLocation } from '@/lib/types';
@@ -6,8 +6,11 @@ import StatCards from '@/components/StatCards';
 import StatusChart from '@/components/StatusChart';
 import FormatChart from '@/components/FormatChart';
 import RegionBreakdown from '@/components/RegionBreakdown';
+import OpeningTimeline from '@/components/OpeningTimeline';
+import RegionStatusHeatmap from '@/components/RegionStatusHeatmap';
 import DataTable from '@/components/DataTable';
 import SheetTabs from '@/components/SheetTabs';
+import DrillDownDrawer, { DrillDownContext } from '@/components/DrillDownDrawer';
 import { LayoutDashboard, Loader2, AlertCircle, Home } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -19,6 +22,8 @@ const SharedReport = () => {
   const [reportName, setReportName] = useState('');
   const [reportDate, setReportDate] = useState('');
   const [activeSheet, setActiveSheet] = useState('all');
+  const [drillDown, setDrillDown] = useState<DrillDownContext | null>(null);
+  const [drillDownOpen, setDrillDownOpen] = useState(false);
 
   useEffect(() => {
     if (!shareId) return;
@@ -36,6 +41,11 @@ const SharedReport = () => {
       setLoading(false);
     });
   }, [shareId]);
+
+  const handleDrillDown = useCallback((context: DrillDownContext) => {
+    setDrillDown(context);
+    setDrillDownOpen(true);
+  }, []);
 
   const sheets = useMemo(() => {
     return [...new Set(allData.map((d) => d.sheetName))];
@@ -93,13 +103,23 @@ const SharedReport = () => {
           <SheetTabs sheets={sheets} activeSheet={activeSheet} onSheetChange={setActiveSheet} />
         )}
         <StatCards data={filteredData} />
-        <StatusChart data={filteredData} />
+        <StatusChart data={filteredData} onDrillDown={handleDrillDown} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <RegionBreakdown data={filteredData} />
-          <FormatChart data={filteredData} />
+          <RegionBreakdown data={filteredData} onDrillDown={handleDrillDown} />
+          <FormatChart data={filteredData} onDrillDown={handleDrillDown} />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <OpeningTimeline data={filteredData} onDrillDown={handleDrillDown} />
+          <RegionStatusHeatmap data={filteredData} onDrillDown={handleDrillDown} />
         </div>
         <DataTable data={filteredData} />
       </main>
+
+      <DrillDownDrawer
+        open={drillDownOpen}
+        onOpenChange={setDrillDownOpen}
+        context={drillDown}
+      />
     </div>
   );
 };

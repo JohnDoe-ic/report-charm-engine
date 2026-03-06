@@ -1,5 +1,6 @@
 import { SalonLocation, normalizeStatus } from '@/lib/types';
 import { DrillDownContext } from './DrillDownDrawer';
+import { exportChartToExcel } from '@/lib/chartExport';
 import {
   BarChart,
   Bar,
@@ -9,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { Download } from 'lucide-react';
 
 interface FormatChartProps {
   data: SalonLocation[];
@@ -76,15 +78,30 @@ const FormatChart = ({ data, onDrillDown }: FormatChartProps) => {
 
   return (
     <div className="dashboard-section">
-      <p className="section-title">Форматы × Статусы</p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="section-title mb-0">Форматы × Статусы</p>
+        <button
+          type="button"
+          onClick={() => exportChartToExcel(chartData.map(r => {
+            const row: Record<string, any> = { Формат: r.format };
+            statusConfig.forEach(s => { row[s.label] = (r as any)[s.key] || 0; });
+            row['Всего'] = r.total;
+            return row;
+          }), 'formats')}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Download className="h-3 w-3" />
+          Excel
+        </button>
+      </div>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData} margin={{ bottom: 5 }} onClick={handleClick}>
+        <BarChart data={chartData} margin={{ bottom: 5 }} onClick={handleClick} style={{ cursor: 'pointer' }}>
           <XAxis dataKey="format" tick={{ fill: 'hsl(220,15%,70%)', fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fill: 'hsl(220,10%,45%)', fontSize: 11 }} axisLine={false} tickLine={false} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ fontSize: 11, color: 'hsl(220,10%,45%)' }} />
           {statusConfig.map(({ key, label, color }) => (
-            <Bar key={key} dataKey={key} name={label} stackId="a" fill={color} className="cursor-pointer" />
+            <Bar key={key} dataKey={key} name={label} stackId="a" fill={color} />
           ))}
         </BarChart>
       </ResponsiveContainer>
