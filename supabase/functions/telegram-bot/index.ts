@@ -103,15 +103,16 @@ Deno.serve(async (req) => {
     const doc = message.document;
 
     if (!doc) {
-      // Send help message
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: '📊 Отправьте Excel-файл (.xlsx/.xls), и я создам для вас интерактивный дашборд с графиками.',
-        }),
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
+    }
+
+    const fileName = (doc.file_name || '').toLowerCase();
+    const isXlsx = fileName.endsWith('.xlsx')
+      || doc.mime_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    if (!isXlsx) {
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
