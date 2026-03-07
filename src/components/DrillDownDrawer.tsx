@@ -5,6 +5,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from '@/components/ui/sheet';
 import {
   Table,
@@ -74,6 +75,7 @@ const DrillDownDrawer = ({ open, onOpenChange, context }: DrillDownDrawerProps) 
       <SheetContent className="w-full sm:max-w-2xl bg-card border-border overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="font-display text-foreground text-lg">{context.title}</SheetTitle>
+          <SheetDescription className="sr-only">Детализация данных графика</SheetDescription>
         </SheetHeader>
 
         <div className="mt-4 space-y-4">
