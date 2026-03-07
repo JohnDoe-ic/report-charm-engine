@@ -73,6 +73,16 @@ function parseExcelBuffer(data: ArrayBuffer): SalonLocation[] {
   return allLocations;
 }
 
+async function sendTelegramMessage(botToken: string, chatId: number | string, text: string, replyMarkup?: any) {
+  const body: any = { chat_id: chatId, text };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -91,6 +101,8 @@ Deno.serve(async (req) => {
 
   try {
     const update = await req.json();
+    console.log('Received update:', JSON.stringify(update).slice(0, 500));
+    
     const message = update?.message;
     if (!message) {
       return new Response(JSON.stringify({ ok: true }), {
@@ -99,30 +111,55 @@ Deno.serve(async (req) => {
     }
 
     const chatId = message.chat.id;
+    const chatType = message.chat.type; // 'private', 'group', 'supergroup'
     const username = message.from?.username || message.from?.first_name || 'unknown';
     const doc = message.document;
 
+    console.log(`Chat: ${chatId} (${chatType}), User: ${username}, Doc: ${doc?.file_name || 'none'}`);
+
+    // Handle /start command
+    if (message.text === '/start') {
+      await sendTelegramMessage(BOT_TOKEN, chatId,
+        '📊 Привет! Отправьте мне Excel-файл (.xlsx) и я построю интерактивный дашборд с графиками.\n\nПоддерживаются файлы с колонками: Регион, Город, Статус, Адрес и др.'
+      );
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     if (!doc) {
+      // In group chats, silently ignore non-document messages
+      if (chatType !== 'private') {
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      await sendTelegramMessage(BOT_TOKEN, chatId, '📎 Отправьте Excel-файл (.xlsx) для построения дашборда.');
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
     const fileName = (doc.file_name || '').toLowerCase();
-    const isXlsx = fileName.endsWith('.xlsx')
+    const isXlsx = fileName.endsWith('.xlsx') || fileName.endsWith('.xls')
       || doc.mime_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
     if (!isXlsx) {
+      await sendTelegramMessage(BOT_TOKEN, chatId, '❌ Поддерживаются только Excel-файлы (.xlsx).');
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
+    // Acknowledge receipt
+    await sendTelegramMessage(BOT_TOKEN, chatId, '⏳ Обрабатываю файл...');
+
     // Download file from Telegram
     const fileInfoRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${doc.file_id}`);
     const fileInfo = await fileInfoRes.json();
+    console.log('File info:', JSON.stringify(fileInfo));
     const filePath = fileInfo.result?.file_path;
-    if (!filePath) throw new Error('Cannot get file path');
+    if (!filePath) throw new Error('Cannot get file path from Telegram');
 
     const fileRes = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`);
     const fileBuffer = await fileRes.arrayBuffer();
@@ -130,14 +167,9 @@ Deno.serve(async (req) => {
     // Parse Excel
     const locations = parseExcelBuffer(fileBuffer);
     if (locations.length === 0) {
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: '❌ Не удалось распарсить файл. Убедитесь, что это Excel с колонками "Регион", "Город", "Статус".',
-        }),
-      });
+      await sendTelegramMessage(BOT_TOKEN, chatId,
+        '❌ Не удалось распарсить файл. Убедитесь, что это Excel с колонками "Регион", "Город", "Статус".'
+      );
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -159,7 +191,7 @@ Deno.serve(async (req) => {
 
     if (reportError) throw reportError;
 
-    // Insert rows
+    // Insert rows in batches
     const batchSize = 500;
     for (let i = 0; i < locations.length; i += batchSize) {
       const batch = locations.slice(i, i + batchSize).map((loc, idx) => ({
@@ -168,27 +200,21 @@ Deno.serve(async (req) => {
         row_index: i + idx,
         data: loc,
       }));
-      await supabase.from('report_rows').insert(batch);
+      const { error } = await supabase.from('report_rows').insert(batch);
+      if (error) console.error('Batch insert error:', error);
     }
 
-    // Get the app URL from env or construct it
     const APP_URL = Deno.env.get('APP_URL') || 'https://report-charm-engine.lovable.app';
-
     const shareUrl = `${APP_URL}/r/${report.share_id}`;
 
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: `✅ Дашборд готов! ${locations.length} локаций из файла "${doc.file_name}"`,
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '📊 Открыть графики', url: shareUrl }
-          ]]
-        }
-      }),
-    });
+    await sendTelegramMessage(BOT_TOKEN, chatId,
+      `✅ Дашборд готов! ${locations.length} локаций из файла "${doc.file_name}"`,
+      {
+        inline_keyboard: [[
+          { text: '📊 Открыть графики', url: shareUrl }
+        ]]
+      }
+    );
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

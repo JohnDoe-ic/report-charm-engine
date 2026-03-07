@@ -65,15 +65,33 @@ export async function loadReport(shareId: string): Promise<{
 
   if (reportError || !report) return null;
 
-  const { data: rows, error: rowError } = await supabase
-    .from('report_rows')
-    .select('*')
-    .eq('report_id', report.id)
-    .order('row_index');
+  // Fetch ALL rows with pagination to avoid 1000-row limit
+  const allRows: any[] = [];
+  const pageSize = 1000;
+  let page = 0;
+  let hasMore = true;
 
-  if (rowError) return null;
+  while (hasMore) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    const { data: rows, error: rowError } = await supabase
+      .from('report_rows')
+      .select('*')
+      .eq('report_id', report.id)
+      .order('row_index')
+      .range(from, to);
 
-  const locations: SalonLocation[] = (rows || []).map((r) => ({
+    if (rowError) return null;
+    if (!rows || rows.length === 0) {
+      hasMore = false;
+    } else {
+      allRows.push(...rows);
+      hasMore = rows.length === pageSize;
+      page++;
+    }
+  }
+
+  const locations: SalonLocation[] = allRows.map((r) => ({
     ...(r.data as any),
     id: r.id,
     sheetName: r.sheet_name,
