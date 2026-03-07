@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { loadReport } from '@/lib/reportService';
 import { SalonLocation } from '@/lib/types';
@@ -11,8 +11,8 @@ import RegionStatusHeatmap from '@/components/RegionStatusHeatmap';
 import DataTable from '@/components/DataTable';
 import SheetTabs from '@/components/SheetTabs';
 import DrillDownDrawer, { DrillDownContext } from '@/components/DrillDownDrawer';
+import AiReportPanel from '@/components/AiReportPanel';
 import { LayoutDashboard, Loader2, AlertCircle, Home } from 'lucide-react';
-import { useMemo } from 'react';
 
 const SharedReport = () => {
   const { shareId } = useParams<{ shareId: string }>();
@@ -112,6 +112,7 @@ const SharedReport = () => {
           <OpeningTimeline data={filteredData} onDrillDown={handleDrillDown} />
           <RegionStatusHeatmap data={filteredData} onDrillDown={handleDrillDown} />
         </div>
+        <AiReportPanel data={filteredData} />
         <DataTable data={filteredData} />
       </main>
 
