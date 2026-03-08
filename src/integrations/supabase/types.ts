@@ -195,6 +195,53 @@ export type Database = {
           },
         ]
       }
+      tracked_locations: {
+        Row: {
+          address: string | null
+          city: string | null
+          first_report_id: string | null
+          first_seen_at: string
+          id: string
+          is_baseline: boolean
+          location_key: string
+          region: string | null
+          salon_format: string | null
+          status: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          first_report_id?: string | null
+          first_seen_at?: string
+          id?: string
+          is_baseline?: boolean
+          location_key: string
+          region?: string | null
+          salon_format?: string | null
+          status?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          first_report_id?: string | null
+          first_seen_at?: string
+          id?: string
+          is_baseline?: boolean
+          location_key?: string
+          region?: string | null
+          salon_format?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracked_locations_first_report_id_fkey"
+            columns: ["first_report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
