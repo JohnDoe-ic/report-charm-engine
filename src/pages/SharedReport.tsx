@@ -12,6 +12,7 @@ import DataTable from '@/components/DataTable';
 import SheetTabs from '@/components/SheetTabs';
 import DrillDownDrawer, { DrillDownContext } from '@/components/DrillDownDrawer';
 import AiReportPanel from '@/components/AiReportPanel';
+import ThemeToggle from '@/components/ThemeToggle';
 import { LayoutDashboard, Loader2, AlertCircle, Home } from 'lucide-react';
 
 const SharedReport = () => {
@@ -47,9 +48,7 @@ const SharedReport = () => {
     setDrillDownOpen(true);
   }, []);
 
-  const sheets = useMemo(() => {
-    return [...new Set(allData.map((d) => d.sheetName))];
-  }, [allData]);
+  const sheets = useMemo(() => [...new Set(allData.map((d) => d.sheetName))], [allData]);
 
   const filteredData = useMemo(() => {
     if (activeSheet === 'all') return allData;
@@ -90,10 +89,11 @@ const SharedReport = () => {
             <LayoutDashboard className="h-5 w-5 text-primary" />
             <h1 className="text-base font-bold tracking-tight font-display">САЛОНЫ</h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground font-display">{reportName}</span>
             <span className="text-xs text-muted-foreground">{reportDate}</span>
             <span className="text-xs text-muted-foreground font-display">{filteredData.length} локаций</span>
+            <ThemeToggle />
           </div>
         </div>
       </header>

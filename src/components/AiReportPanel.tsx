@@ -1,10 +1,26 @@
 import { useState, useRef, useMemo } from 'react';
 import { SalonLocation, normalizeStatus } from '@/lib/types';
-import { Sparkles, Send, Loader2, X } from 'lucide-react';
+import { Sparkles, Send, Loader2, X, BarChart3, PieChart as PieChartIcon, TrendingUp } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import {
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
 
 interface AiReportPanelProps {
   data: SalonLocation[];
 }
+
+interface AiChart {
+  type: 'bar' | 'pie' | 'line';
+  title: string;
+  data: { name: string; value: number; [key: string]: any }[];
+}
+
+const CHART_COLORS = [
+  'hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))',
+];
 
 function buildDataSummary(data: SalonLocation[]): string {
   const totalLocations = data.length;
@@ -33,6 +49,86 @@ function buildDataSummary(data: SalonLocation[]): string {
 
   return summary;
 }
+
+function parseChartsFromResponse(text: string): { cleanText: string; charts: AiChart[] } {
+  const charts: AiChart[] = [];
+  let cleanText = text;
+
+  // Parse ```chart blocks
+  const chartRegex = /```chart\s*\n([\s\S]*?)```/g;
+  let match;
+  while ((match = chartRegex.exec(text)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (parsed.type && parsed.data && Array.isArray(parsed.data)) {
+        charts.push(parsed as AiChart);
+      }
+    } catch { /* ignore invalid JSON */ }
+    cleanText = cleanText.replace(match[0], '');
+  }
+
+  return { cleanText: cleanText.trim(), charts };
+}
+
+const ChartTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-popover border border-border rounded-md px-3 py-2 text-sm shadow-lg">
+        <p className="text-foreground font-medium text-xs">{label || payload[0]?.name}</p>
+        {payload.map((p: any, i: number) => (
+          <p key={i} className="text-muted-foreground text-xs">{p.name || 'Значение'}: {p.value}</p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+const AiChartRenderer = ({ chart }: { chart: AiChart }) => {
+  return (
+    <div className="rounded-lg border border-border bg-secondary/20 p-4 my-3">
+      <div className="flex items-center gap-2 mb-3">
+        {chart.type === 'bar' && <BarChart3 className="h-4 w-4 text-primary" />}
+        {chart.type === 'pie' && <PieChartIcon className="h-4 w-4 text-primary" />}
+        {chart.type === 'line' && <TrendingUp className="h-4 w-4 text-primary" />}
+        <span className="text-xs font-display font-semibold uppercase tracking-wider text-muted-foreground">
+          {chart.title}
+        </span>
+      </div>
+      <ResponsiveContainer width="100%" height={250}>
+        {chart.type === 'bar' ? (
+          <BarChart data={chart.data}>
+            <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip content={<ChartTooltip />} />
+            <Bar dataKey="value" radius={[3, 3, 0, 0]} barSize={24}>
+              {chart.data.map((_, i) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        ) : chart.type === 'pie' ? (
+          <PieChart>
+            <Pie data={chart.data} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={2} dataKey="value" strokeWidth={0}>
+              {chart.data.map((_, i) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip content={<ChartTooltip />} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+          </PieChart>
+        ) : (
+          <LineChart data={chart.data}>
+            <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip content={<ChartTooltip />} />
+            <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3, fill: 'hsl(var(--primary))' }} />
+          </LineChart>
+        )}
+      </ResponsiveContainer>
+    </div>
+  );
+};
 
 async function streamAiReport(
   query: string,
@@ -86,9 +182,10 @@ async function streamAiReport(
 
 const SUGGESTIONS = [
   'Какие регионы показывают лучшую динамику открытий?',
-  'Сравни форматы салонов по статусам',
-  'Какие города лидируют по количеству открытых салонов?',
+  'Сравни форматы салонов по статусам — построй график',
+  'Какие города лидируют по количеству открытых салонов? Покажи на графике',
   'Дай сводку по проблемным локациям (отказы, нет аренды)',
+  'Построй pie-chart по статусам всех локаций',
 ];
 
 const AiReportPanel = ({ data }: AiReportPanelProps) => {
@@ -100,6 +197,8 @@ const AiReportPanel = ({ data }: AiReportPanelProps) => {
   const responseRef = useRef('');
 
   const dataSummary = useMemo(() => buildDataSummary(data), [data]);
+
+  const { cleanText, charts } = useMemo(() => parseChartsFromResponse(response), [response]);
 
   const handleSubmit = async (text?: string) => {
     const q = text || query;
@@ -131,7 +230,7 @@ const AiReportPanel = ({ data }: AiReportPanelProps) => {
           <p className="section-title mb-0">AI-аналитик</p>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
-          Задайте вопрос по данным — AI проанализирует и даст ответ
+          Задайте вопрос по данным — AI проанализирует, построит графики и даст рекомендации
         </p>
         <div className="flex gap-2">
           <input
@@ -139,7 +238,7 @@ const AiReportPanel = ({ data }: AiReportPanelProps) => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-            placeholder="Например: Какие регионы лидируют по открытиям?"
+            placeholder="Например: Какие регионы лидируют по открытиям? Покажи график"
             className="flex-1 h-9 rounded-md border border-border bg-secondary px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <button
@@ -206,17 +305,25 @@ const AiReportPanel = ({ data }: AiReportPanelProps) => {
       )}
 
       {(response || loading) && (
-        <div className="rounded-lg border border-border bg-secondary/30 p-4 max-h-[500px] overflow-auto">
-          <div className="prose prose-sm prose-invert max-w-none text-foreground/90 text-sm whitespace-pre-wrap">
-            {response}
-            {loading && !response && (
-              <span className="text-muted-foreground flex items-center gap-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Анализирую данные...
-              </span>
-            )}
-            {loading && response && <span className="inline-block w-1.5 h-4 bg-primary/60 animate-pulse ml-0.5" />}
-          </div>
+        <div className="rounded-lg border border-border bg-secondary/20 p-4 max-h-[600px] overflow-auto">
+          {loading && !response && (
+            <span className="text-muted-foreground flex items-center gap-2 text-sm">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Анализирую данные...
+            </span>
+          )}
+
+          {cleanText && (
+            <div className="ai-prose">
+              <ReactMarkdown>{cleanText}</ReactMarkdown>
+            </div>
+          )}
+
+          {charts.map((chart, i) => (
+            <AiChartRenderer key={i} chart={chart} />
+          ))}
+
+          {loading && response && <span className="inline-block w-1.5 h-4 bg-primary/60 animate-pulse ml-0.5" />}
         </div>
       )}
     </div>
