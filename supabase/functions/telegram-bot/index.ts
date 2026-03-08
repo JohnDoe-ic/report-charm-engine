@@ -299,6 +299,7 @@ Deno.serve(async (req) => {
         return ok();
       }
 
+      if (data === 'noop') { await answerCb(BOT_TOKEN, cb.id); return ok(); }
       await answerCb(BOT_TOKEN, cb.id);
       return ok();
     }
