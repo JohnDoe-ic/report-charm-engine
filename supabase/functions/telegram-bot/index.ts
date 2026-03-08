@@ -156,13 +156,16 @@ Deno.serve(async (req) => {
           await answerCb(BOT_TOKEN, cb.id, '✅ Вы уже зарегистрированы');
           return ok();
         }
-        // Create a placeholder entry with state
+        // First registered user becomes admin
+        const { count: totalStaff } = await supabase.from('staff').select('*', { count: 'exact', head: true });
+        const assignRole = (totalStaff || 0) === 0 ? 'admin' : 'employee';
         await supabase.from('staff').insert({
           telegram_user_id: userId, telegram_username: username,
-          full_name: '—', account_number: '—', state: 'await_name',
+          full_name: '—', account_number: '—', state: 'await_name', role: assignRole,
         });
         await answerCb(BOT_TOKEN, cb.id);
-        await sendMsg(BOT_TOKEN, chatId, '👤 <b>Регистрация</b>\n\nВведите ваше <b>Имя и Фамилию</b>:');
+        const roleHint = assignRole === 'admin' ? '\n\n👑 Вы будете назначены <b>администратором</b>!' : '';
+        await sendMsg(BOT_TOKEN, chatId, `👤 <b>Регистрация</b>${roleHint}\n\nВведите ваше <b>Имя и Фамилию</b>:`);
         return ok();
       }
 
