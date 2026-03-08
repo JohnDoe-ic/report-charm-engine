@@ -131,6 +131,36 @@ function shiftKeyboard(sales: number, activations: number, topups: number) {
   };
 }
 
+function editShiftKeyboard(shiftId: string, sales: number, activations: number, topups: number) {
+  return {
+    inline_keyboard: [
+      [
+        { text: `🛒 +1`, callback_data: `edit_add_sale_${shiftId}` },
+        { text: `Продажи: ${sales}`, callback_data: 'noop' },
+        { text: sales > 0 ? `🛒 -1` : ' ', callback_data: sales > 0 ? `edit_rm_sale_${shiftId}` : 'noop' },
+      ],
+      [
+        { text: `📱 +1`, callback_data: `edit_add_act_${shiftId}` },
+        { text: `Активации: ${activations}`, callback_data: 'noop' },
+        { text: activations > 0 ? `📱 -1` : ' ', callback_data: activations > 0 ? `edit_rm_act_${shiftId}` : 'noop' },
+      ],
+      [
+        { text: `💰 +1`, callback_data: `edit_add_top_${shiftId}` },
+        { text: `Пополнения: ${topups}`, callback_data: 'noop' },
+        { text: topups > 0 ? `💰 -1` : ' ', callback_data: topups > 0 ? `edit_rm_top_${shiftId}` : 'noop' },
+      ],
+      [{ text: '✅ Готово', callback_data: 'edit_done' }],
+    ],
+  };
+}
+
+async function getShiftCounts(supabase: any, shiftId: string) {
+  const { count: s } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shiftId).eq('activity_type', 'sale');
+  const { count: a } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shiftId).eq('activity_type', 'activation');
+  const { count: t } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shiftId).eq('activity_type', 'topup');
+  return { sales: s || 0, activations: a || 0, topups: t || 0 };
+}
+
 // ---- Main handler ----
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
