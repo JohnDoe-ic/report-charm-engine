@@ -45,6 +45,25 @@ export async function saveReport(
     }
   }
 
+  // --- Track new locations ---
+  const { count: existingCount } = await supabase.from('tracked_locations').select('*', { count: 'exact', head: true });
+  const isBaseline = (existingCount || 0) === 0;
+
+  for (let i = 0; i < locations.length; i += 200) {
+    const batch = locations.slice(i, i + 200);
+    const inserts = batch.map(loc => ({
+      location_key: `${loc.region}||${loc.city}||${loc.address}`.toLowerCase().trim(),
+      region: loc.region,
+      city: loc.city,
+      address: loc.address,
+      status: loc.status,
+      salon_format: loc.salonFormat || null,
+      first_report_id: report.id,
+      is_baseline: isBaseline,
+    }));
+    await supabase.from('tracked_locations').upsert(inserts, { onConflict: 'location_key', ignoreDuplicates: true });
+  }
+
   return {
     id: report.id,
     shareId: report.share_id,
