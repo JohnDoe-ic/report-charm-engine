@@ -1,0 +1,1 @@
+CREATE POLICY "Anyone can delete activities" ON public.staff_activities FOR DELETE USING (true);

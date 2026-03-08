@@ -111,10 +111,17 @@ function shiftKeyboard(sales: number, activations: number, topups: number) {
   return {
     inline_keyboard: [
       [
-        { text: `🛒 Продажа (${sales})`, callback_data: 'staff_sale' },
-        { text: `📱 Активация (${activations})`, callback_data: 'staff_activation' },
+        { text: `🛒 +Продажа (${sales})`, callback_data: 'staff_sale' },
+        { text: sales > 0 ? `🛒 -1` : ' ', callback_data: sales > 0 ? 'undo_sale' : 'noop' },
       ],
-      [{ text: `💰 Пополнение (${topups})`, callback_data: 'staff_topup' }],
+      [
+        { text: `📱 +Активация (${activations})`, callback_data: 'staff_activation' },
+        { text: activations > 0 ? `📱 -1` : ' ', callback_data: activations > 0 ? 'undo_activation' : 'noop' },
+      ],
+      [
+        { text: `💰 +Пополнение (${topups})`, callback_data: 'staff_topup' },
+        { text: topups > 0 ? `💰 -1` : ' ', callback_data: topups > 0 ? 'undo_topup' : 'noop' },
+      ],
       [
         { text: '📍 Сменить локацию', callback_data: 'staff_change_location' },
         { text: '🏁 Завершить смену', callback_data: 'staff_end_shift' },
@@ -228,6 +235,28 @@ Deno.serve(async (req) => {
         return ok();
       }
 
+      // --- Undo activity buttons ---
+      if (data === 'undo_sale' || data === 'undo_activation' || data === 'undo_topup') {
+        if (!shift) { await answerCb(BOT_TOKEN, cb.id, '❌ Нет активной смены'); return ok(); }
+        const undoMap: Record<string, string> = { undo_sale: 'sale', undo_activation: 'activation', undo_topup: 'topup' };
+        const labelMap: Record<string, string> = { undo_sale: 'Продажа', undo_activation: 'Активация', undo_topup: 'Пополнение' };
+        const actType = undoMap[data];
+        // Delete the most recent activity of this type
+        const { data: lastActivity } = await supabase.from('staff_activities').select('id').eq('shift_id', shift.id).eq('activity_type', actType).order('created_at', { ascending: false }).limit(1).single();
+        if (lastActivity) {
+          await supabase.from('staff_activities').delete().eq('id', lastActivity.id);
+        }
+        const { count: s } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'sale');
+        const { count: a } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'activation');
+        const { count: t } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'topup');
+        await answerCb(BOT_TOKEN, cb.id, `↩️ ${labelMap[data]} -1`);
+        await editMsg(BOT_TOKEN, chatId, messageId,
+          `📍 <b>${shift.location_address}</b>\n👤 ${staff.full_name}\n\n🛒 Продажи: ${s||0}\n📱 Активации: ${a||0}\n💰 Пополнения: ${t||0}`,
+          shiftKeyboard(s||0, a||0, t||0)
+        );
+        return ok();
+      }
+
       if (data === 'staff_end_shift') {
         if (!shift) { await answerCb(BOT_TOKEN, cb.id, '❌ Нет активной смены'); return ok(); }
         await supabase.from('staff_shifts').update({ is_active: false, ended_at: new Date().toISOString() }).eq('id', shift.id);
@@ -270,6 +299,7 @@ Deno.serve(async (req) => {
         return ok();
       }
 
+      if (data === 'noop') { await answerCb(BOT_TOKEN, cb.id); return ok(); }
       await answerCb(BOT_TOKEN, cb.id);
       return ok();
     }
