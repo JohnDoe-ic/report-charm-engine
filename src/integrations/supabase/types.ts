@@ -89,6 +89,8 @@ export type Database = {
           id: string
           registered_at: string
           role: string
+          state: string | null
+          state_data: Json | null
           telegram_user_id: number
           telegram_username: string | null
         }
@@ -98,6 +100,8 @@ export type Database = {
           id?: string
           registered_at?: string
           role?: string
+          state?: string | null
+          state_data?: Json | null
           telegram_user_id: number
           telegram_username?: string | null
         }
@@ -107,6 +111,8 @@ export type Database = {
           id?: string
           registered_at?: string
           role?: string
+          state?: string | null
+          state_data?: Json | null
           telegram_user_id?: number
           telegram_username?: string | null
         }

@@ -6,6 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// ---- Excel parser (for salon reports) ----
 interface SalonLocation {
   id: string; region: string; city: string; district?: string; settlement?: string;
   address: string; commercialPartner?: string; salonFormat: string; status: string;
@@ -28,8 +29,7 @@ function parseExcelBuffer(data: ArrayBuffer): SalonLocation[] {
     if (headerIdx === -1) continue;
     const colMap: Record<string, number> = {};
     headers.forEach((h, i) => { if (h) colMap[h] = i; });
-    const getCol = (name: string) => colMap[name] ?? -1;
-    const getVal = (row: string[], name: string) => { const idx = getCol(name); return idx !== -1 ? row[idx] || '' : ''; };
+    const getVal = (row: string[], name: string) => { const idx = colMap[name] ?? -1; return idx !== -1 ? row[idx] || '' : ''; };
     for (let r = headerIdx + 1; r < rows.length; r++) {
       const row = rows[r].map(c => String(c).trim());
       const region = getVal(row, 'Регион'); const city = getVal(row, 'Город');
@@ -73,13 +73,40 @@ async function answerCb(botToken: string, callbackQueryId: string, text?: string
   return tgApi(botToken, 'answerCallbackQuery', { callback_query_id: callbackQueryId, text });
 }
 
-function extractDocument(message: any): { doc: any } | null {
-  if (message.document) return { doc: message.document };
-  if (message.reply_to_message?.document) return { doc: message.reply_to_message.document };
+function extractDocument(message: any) {
+  if (message.document) return message.document;
+  if (message.reply_to_message?.document) return message.reply_to_message.document;
   return null;
 }
 
-// ---- Staff shift inline keyboard ----
+// ---- State helpers ----
+async function setState(supabase: any, staffId: string, state: string | null, stateData?: any) {
+  await supabase.from('staff').update({ state, state_data: stateData || null }).eq('id', staffId);
+}
+
+async function getOrCreateStaffEntry(supabase: any, userId: number, username: string) {
+  const { data } = await supabase.from('staff').select('*').eq('telegram_user_id', userId).single();
+  return data;
+}
+
+// ---- Keyboards ----
+function mainMenuKeyboard(isRegistered: boolean, isAdmin: boolean) {
+  const rows: any[][] = [];
+  if (!isRegistered) {
+    rows.push([{ text: '👤 Регистрация', callback_data: 'menu_register' }]);
+  } else {
+    rows.push([{ text: '📍 Открыть смену', callback_data: 'menu_shift' }]);
+    if (isAdmin) {
+      rows.push([
+        { text: '📊 Отчёт по сотрудникам', callback_data: 'staff_report' },
+        { text: '👑 Назначить админа', callback_data: 'menu_set_admin' },
+      ]);
+    }
+  }
+  rows.push([{ text: '📁 Загрузить Excel', callback_data: 'menu_excel_hint' }]);
+  return { inline_keyboard: rows };
+}
+
 function shiftKeyboard(sales: number, activations: number, topups: number) {
   return {
     inline_keyboard: [
@@ -87,9 +114,7 @@ function shiftKeyboard(sales: number, activations: number, topups: number) {
         { text: `🛒 Продажа (${sales})`, callback_data: 'staff_sale' },
         { text: `📱 Активация (${activations})`, callback_data: 'staff_activation' },
       ],
-      [
-        { text: `💰 Пополнение (${topups})`, callback_data: 'staff_topup' },
-      ],
+      [{ text: `💰 Пополнение (${topups})`, callback_data: 'staff_topup' }],
       [
         { text: '📍 Сменить локацию', callback_data: 'staff_change_location' },
         { text: '🏁 Завершить смену', callback_data: 'staff_end_shift' },
@@ -112,21 +137,76 @@ Deno.serve(async (req) => {
 
   try {
     const update = await req.json();
-    console.log('Update:', JSON.stringify(update).slice(0, 1000));
+    console.log('Update:', JSON.stringify(update).slice(0, 1200));
 
-    // ===== CALLBACK QUERY (inline buttons) =====
+    // ==================== CALLBACK QUERIES ====================
     if (update.callback_query) {
       const cb = update.callback_query;
       const data = cb.data as string;
       const userId = cb.from.id;
       const chatId = cb.message.chat.id;
       const messageId = cb.message.message_id;
+      const username = cb.from?.username || cb.from?.first_name || 'unknown';
 
-      // Get staff
-      const { data: staff } = await supabase.from('staff').select('*').eq('telegram_user_id', userId).single();
-      if (!staff) { await answerCb(BOT_TOKEN, cb.id, '❌ Вы не зарегистрированы. Напишите /reg'); return ok(); }
+      const staff = await getOrCreateStaffEntry(supabase, userId, username);
 
-      // Get active shift
+      // --- Menu: Register ---
+      if (data === 'menu_register') {
+        if (staff) {
+          await answerCb(BOT_TOKEN, cb.id, '✅ Вы уже зарегистрированы');
+          return ok();
+        }
+        // Create a placeholder entry with state
+        await supabase.from('staff').insert({
+          telegram_user_id: userId, telegram_username: username,
+          full_name: '—', account_number: '—', state: 'await_name',
+        });
+        await answerCb(BOT_TOKEN, cb.id);
+        await sendMsg(BOT_TOKEN, chatId, '👤 <b>Регистрация</b>\n\nВведите ваше <b>Имя и Фамилию</b>:');
+        return ok();
+      }
+
+      // --- Menu: Open shift ---
+      if (data === 'menu_shift') {
+        if (!staff) { await answerCb(BOT_TOKEN, cb.id, '❌ Сначала зарегистрируйтесь'); return ok(); }
+        // Check for active shift
+        const { data: activeShift } = await supabase.from('staff_shifts').select('*').eq('staff_id', staff.id).eq('is_active', true).single();
+        if (activeShift) {
+          await answerCb(BOT_TOKEN, cb.id, 'У вас уже открыта смена');
+          const { count: s } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', activeShift.id).eq('activity_type', 'sale');
+          const { count: a } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', activeShift.id).eq('activity_type', 'activation');
+          const { count: t } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', activeShift.id).eq('activity_type', 'topup');
+          await sendMsg(BOT_TOKEN, chatId,
+            `📍 <b>${activeShift.location_address}</b>\n👤 ${staff.full_name}\n\n🛒 Продажи: ${s||0}\n📱 Активации: ${a||0}\n💰 Пополнения: ${t||0}`,
+            shiftKeyboard(s||0, a||0, t||0)
+          );
+          return ok();
+        }
+        await setState(supabase, staff.id, 'await_shift_address');
+        await answerCb(BOT_TOKEN, cb.id);
+        await sendMsg(BOT_TOKEN, chatId, '📍 <b>Открытие смены</b>\n\nВведите <b>адрес точки</b>:');
+        return ok();
+      }
+
+      // --- Menu: Set admin ---
+      if (data === 'menu_set_admin') {
+        if (!staff || staff.role !== 'admin') { await answerCb(BOT_TOKEN, cb.id, '❌ Только для админов'); return ok(); }
+        await setState(supabase, staff.id, 'await_admin_username');
+        await answerCb(BOT_TOKEN, cb.id);
+        await sendMsg(BOT_TOKEN, chatId, '👑 Введите <b>@username</b> сотрудника, которого хотите назначить администратором:');
+        return ok();
+      }
+
+      // --- Menu: Excel hint ---
+      if (data === 'menu_excel_hint') {
+        await answerCb(BOT_TOKEN, cb.id);
+        await sendMsg(BOT_TOKEN, chatId, '📁 Просто отправьте Excel-файл (.xlsx) в этот чат, и я построю интерактивный дашборд.');
+        return ok();
+      }
+
+      // --- Staff activity buttons ---
+      if (!staff) { await answerCb(BOT_TOKEN, cb.id, '❌ Не зарегистрированы'); return ok(); }
+
       const { data: shift } = await supabase.from('staff_shifts').select('*').eq('staff_id', staff.id).eq('is_active', true).order('started_at', { ascending: false }).limit(1).single();
 
       if (data === 'staff_sale' || data === 'staff_activation' || data === 'staff_topup') {
@@ -134,16 +214,13 @@ Deno.serve(async (req) => {
         const typeMap: Record<string, string> = { staff_sale: 'sale', staff_activation: 'activation', staff_topup: 'topup' };
         const labelMap: Record<string, string> = { staff_sale: 'Продажа', staff_activation: 'Активация', staff_topup: 'Пополнение' };
         await supabase.from('staff_activities').insert({ staff_id: staff.id, shift_id: shift.id, activity_type: typeMap[data] });
-
-        // Get updated counts
-        const { count: sales } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'sale');
-        const { count: activations } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'activation');
-        const { count: topups } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'topup');
-
+        const { count: s } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'sale');
+        const { count: a } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'activation');
+        const { count: t } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'topup');
         await answerCb(BOT_TOKEN, cb.id, `✅ ${labelMap[data]} +1`);
         await editMsg(BOT_TOKEN, chatId, messageId,
-          `📍 <b>${shift.location_address}</b>\n👤 ${staff.full_name}\n\n🛒 Продажи: ${sales || 0}\n📱 Активации: ${activations || 0}\n💰 Пополнения: ${topups || 0}`,
-          shiftKeyboard(sales || 0, activations || 0, topups || 0)
+          `📍 <b>${shift.location_address}</b>\n👤 ${staff.full_name}\n\n🛒 Продажи: ${s||0}\n📱 Активации: ${a||0}\n💰 Пополнения: ${t||0}`,
+          shiftKeyboard(s||0, a||0, t||0)
         );
         return ok();
       }
@@ -151,45 +228,37 @@ Deno.serve(async (req) => {
       if (data === 'staff_end_shift') {
         if (!shift) { await answerCb(BOT_TOKEN, cb.id, '❌ Нет активной смены'); return ok(); }
         await supabase.from('staff_shifts').update({ is_active: false, ended_at: new Date().toISOString() }).eq('id', shift.id);
-
-        // Get total counts for this shift
-        const { count: sales } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'sale');
-        const { count: activations } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'activation');
-        const { count: topups } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'topup');
-
+        const { count: s } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'sale');
+        const { count: a } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'activation');
+        const { count: t } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'topup');
         await answerCb(BOT_TOKEN, cb.id, '✅ Смена завершена');
         await editMsg(BOT_TOKEN, chatId, messageId,
-          `🏁 <b>Смена завершена</b>\n📍 ${shift.location_address}\n👤 ${staff.full_name}\n\n🛒 Продажи: ${sales || 0}\n📱 Активации: ${activations || 0}\n💰 Пополнения: ${topups || 0}`
+          `🏁 <b>Смена завершена</b>\n📍 ${shift.location_address}\n👤 ${staff.full_name}\n\n🛒 Продажи: ${s||0}\n📱 Активации: ${a||0}\n💰 Пополнения: ${t||0}\n\nНажмите /start для главного меню.`
         );
         return ok();
       }
 
       if (data === 'staff_change_location') {
         if (!shift) { await answerCb(BOT_TOKEN, cb.id, '❌ Нет активной смены'); return ok(); }
-        // Close current shift but keep activities
         await supabase.from('staff_shifts').update({ is_active: false, ended_at: new Date().toISOString() }).eq('id', shift.id);
-        // Set state to awaiting new location
-        await answerCb(BOT_TOKEN, cb.id, '📍 Отправьте новый адрес текстом');
-        await sendMsg(BOT_TOKEN, chatId, '📍 Отправьте новый адрес точки текстовым сообщением:');
+        await setState(supabase, staff.id, 'await_shift_address');
+        await answerCb(BOT_TOKEN, cb.id);
+        await sendMsg(BOT_TOKEN, chatId, '📍 Введите <b>новый адрес</b> точки:');
         return ok();
       }
 
-      // Admin: request report
+      // --- Admin: report ---
       if (data === 'staff_report') {
-        if (staff.role !== 'admin') { await answerCb(BOT_TOKEN, cb.id, '❌ Только для администраторов'); return ok(); }
+        if (!staff || staff.role !== 'admin') { await answerCb(BOT_TOKEN, cb.id, '❌ Только для админов'); return ok(); }
         await answerCb(BOT_TOKEN, cb.id, '⏳ Генерирую отчёт...');
-
-        // Generate report via edge function
-        const reportUrl = `${SUPABASE_URL}/functions/v1/staff-report`;
-        const reportRes = await fetch(reportUrl, {
+        const reportRes = await fetch(`${SUPABASE_URL}/functions/v1/staff-report`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
           body: JSON.stringify({ chatId: String(chatId) }),
         });
         const reportData = await reportRes.json();
-
         if (reportData.shareUrl) {
-          await sendMsg(BOT_TOKEN, chatId, `📊 <b>Отчёт по сотрудникам готов!</b>\n\n${reportData.summary || ''}`, {
+          await sendMsg(BOT_TOKEN, chatId, `📊 <b>Отчёт готов!</b>\n\n${reportData.summary || ''}`, {
             inline_keyboard: [[{ text: '📊 Открыть дашборд', url: reportData.shareUrl }]]
           });
         } else {
@@ -202,7 +271,7 @@ Deno.serve(async (req) => {
       return ok();
     }
 
-    // ===== MESSAGE =====
+    // ==================== MESSAGES ====================
     const message = update?.message;
     if (!message) return ok();
 
@@ -213,235 +282,170 @@ Deno.serve(async (req) => {
     const threadId = message.message_thread_id;
     const text = (message.text || '').trim();
 
-    // --- /start ---
-    if (text === '/start') {
-      await sendMsg(BOT_TOKEN, chatId,
-        '📊 <b>Бот отчётности</b>\n\n📁 Отправьте Excel-файл для дашборда\n👤 /reg — регистрация сотрудника\n📍 /shift — открыть смену\n📊 /report — отчёт по сотрудникам (админ)',
-        undefined, threadId
-      );
+    // --- /start → main menu ---
+    if (text === '/start' || text === '/menu') {
+      const staff = await getOrCreateStaffEntry(supabase, userId, username);
+      const isRegistered = !!staff && staff.full_name !== '—';
+      const isAdmin = staff?.role === 'admin';
+      
+      let greeting = '📊 <b>Бот отчётности</b>\n\n';
+      if (isRegistered) {
+        greeting += `👤 ${staff.full_name}\n`;
+        if (isAdmin) greeting += '👑 Администратор\n';
+        greeting += '\nВыберите действие:';
+      } else {
+        greeting += 'Добро пожаловать! Выберите действие:';
+      }
+
+      await sendMsg(BOT_TOKEN, chatId, greeting, mainMenuKeyboard(isRegistered, isAdmin), threadId);
       return ok();
     }
 
-    // --- /reg Name AccountNumber ---
-    if (text.startsWith('/reg')) {
-      const parts = text.replace('/reg', '').trim().split(/\s+/);
-      if (parts.length < 2 || !parts[0]) {
-        await sendMsg(BOT_TOKEN, chatId, '📝 Формат: <code>/reg Имя_Фамилия ЛицевойСчёт</code>\nПример: <code>/reg Иван_Петров 123456</code>', undefined, threadId);
+    // --- /admin (first admin self-promotion) ---
+    if (text === '/admin') {
+      const staff = await getOrCreateStaffEntry(supabase, userId, username);
+      if (!staff || staff.full_name === '—') {
+        await sendMsg(BOT_TOKEN, chatId, '❌ Сначала зарегистрируйтесь через /start', undefined, threadId);
         return ok();
       }
-      const fullName = parts[0].replace(/_/g, ' ');
-      const accountNumber = parts[1];
-
-      // Check if already registered
-      const { data: existing } = await supabase.from('staff').select('id').eq('telegram_user_id', userId).single();
-      if (existing) {
-        await sendMsg(BOT_TOKEN, chatId, '✅ Вы уже зарегистрированы. Используйте /shift для открытия смены.', undefined, threadId);
-        return ok();
-      }
-
-      await supabase.from('staff').insert({
-        telegram_user_id: userId,
-        telegram_username: username,
-        full_name: fullName,
-        account_number: accountNumber,
-      });
-      await sendMsg(BOT_TOKEN, chatId, `✅ Регистрация успешна!\n👤 ${fullName}\n📋 Лицевой счёт: ${accountNumber}\n\nИспользуйте /shift для открытия смены.`, undefined, threadId);
-      return ok();
-    }
-
-    // --- /admin userId ---
-    if (text.startsWith('/admin')) {
-      // Only existing admins can promote others
-      const { data: caller } = await supabase.from('staff').select('*').eq('telegram_user_id', userId).single();
-      // First admin: if no admins exist, allow self-promotion
       const { count: adminCount } = await supabase.from('staff').select('*', { count: 'exact', head: true }).eq('role', 'admin');
-
-      if (adminCount === 0 && caller) {
-        await supabase.from('staff').update({ role: 'admin' }).eq('id', caller.id);
-        await sendMsg(BOT_TOKEN, chatId, '👑 Вы назначены первым администратором!', undefined, threadId);
-        return ok();
+      if (adminCount === 0) {
+        await supabase.from('staff').update({ role: 'admin' }).eq('id', staff.id);
+        await sendMsg(BOT_TOKEN, chatId, '👑 Вы назначены первым администратором!\n\nНажмите /start для главного меню.', undefined, threadId);
+      } else if (staff.role !== 'admin') {
+        await sendMsg(BOT_TOKEN, chatId, '❌ Администратор уже назначен. Обратитесь к нему.', undefined, threadId);
+      } else {
+        await sendMsg(BOT_TOKEN, chatId, '👑 Вы уже администратор.', undefined, threadId);
       }
-
-      if (!caller || caller.role !== 'admin') {
-        await sendMsg(BOT_TOKEN, chatId, '❌ Только администраторы могут назначать роли.', undefined, threadId);
-        return ok();
-      }
-
-      const targetUsername = text.replace('/admin', '').trim().replace('@', '');
-      if (!targetUsername) {
-        await sendMsg(BOT_TOKEN, chatId, '📝 Формат: <code>/admin @username</code>', undefined, threadId);
-        return ok();
-      }
-
-      const { data: target, error: targetErr } = await supabase.from('staff').select('*').eq('telegram_username', targetUsername).single();
-      if (!target || targetErr) {
-        await sendMsg(BOT_TOKEN, chatId, `❌ Сотрудник @${targetUsername} не найден.`, undefined, threadId);
-        return ok();
-      }
-
-      await supabase.from('staff').update({ role: 'admin' }).eq('id', target.id);
-      await sendMsg(BOT_TOKEN, chatId, `👑 @${targetUsername} назначен администратором.`, undefined, threadId);
       return ok();
     }
 
-    // --- /shift address ---
-    if (text.startsWith('/shift')) {
-      const { data: staff } = await supabase.from('staff').select('*').eq('telegram_user_id', userId).single();
-      if (!staff) {
-        await sendMsg(BOT_TOKEN, chatId, '❌ Сначала зарегистрируйтесь: /reg Имя_Фамилия ЛицевойСчёт', undefined, threadId);
+    // --- Handle state-based text inputs ---
+    const staff = await getOrCreateStaffEntry(supabase, userId, username);
+
+    if (staff && staff.state && text) {
+      // Registration: awaiting name
+      if (staff.state === 'await_name') {
+        await supabase.from('staff').update({ full_name: text, state: 'await_account', state_data: null }).eq('id', staff.id);
+        await sendMsg(BOT_TOKEN, chatId, `👤 <b>${text}</b>\n\nТеперь введите ваш <b>лицевой счёт</b>:`, undefined, threadId);
         return ok();
       }
 
-      const address = text.replace('/shift', '').trim();
-      if (!address) {
-        await sendMsg(BOT_TOKEN, chatId, '📍 Формат: <code>/shift Адрес точки</code>\nПример: <code>/shift ул. Ленина 42</code>', undefined, threadId);
+      // Registration: awaiting account number
+      if (staff.state === 'await_account') {
+        await supabase.from('staff').update({ account_number: text, state: null, state_data: null }).eq('id', staff.id);
+        const updatedStaff = { ...staff, account_number: text };
+        await sendMsg(BOT_TOKEN, chatId,
+          `✅ <b>Регистрация завершена!</b>\n\n👤 ${staff.full_name}\n📋 Лицевой счёт: ${text}\n\nНажмите /start для главного меню.`,
+          mainMenuKeyboard(true, staff.role === 'admin'), threadId
+        );
         return ok();
       }
 
-      // Close any active shift
-      await supabase.from('staff_shifts').update({ is_active: false, ended_at: new Date().toISOString() }).eq('staff_id', staff.id).eq('is_active', true);
+      // Shift: awaiting address
+      if (staff.state === 'await_shift_address') {
+        // Close any active shift
+        await supabase.from('staff_shifts').update({ is_active: false, ended_at: new Date().toISOString() }).eq('staff_id', staff.id).eq('is_active', true);
+        // Create new shift
+        await supabase.from('staff_shifts').insert({ staff_id: staff.id, location_address: text });
+        await setState(supabase, staff.id, null);
 
-      // Create new shift
-      const { data: newShift } = await supabase.from('staff_shifts').insert({
-        staff_id: staff.id,
-        location_address: address,
-      }).select('id').single();
+        await sendMsg(BOT_TOKEN, chatId,
+          `✅ <b>Смена открыта!</b>\n📍 ${text}\n👤 ${staff.full_name}\n\n📸 Отправьте фото точки (необязательно)\n\n🛒 Продажи: 0\n📱 Активации: 0\n💰 Пополнения: 0`,
+          shiftKeyboard(0, 0, 0), threadId
+        );
+        return ok();
+      }
 
-      await sendMsg(BOT_TOKEN, chatId,
-        `📍 <b>${address}</b>\n👤 ${staff.full_name}\n\n🛒 Продажи: 0\n📱 Активации: 0\n💰 Пополнения: 0`,
-        shiftKeyboard(0, 0, 0), threadId
+      // Admin: awaiting username to promote
+      if (staff.state === 'await_admin_username') {
+        const targetUsername = text.replace('@', '').trim();
+        await setState(supabase, staff.id, null);
+        const { data: target } = await supabase.from('staff').select('*').eq('telegram_username', targetUsername).single();
+        if (!target) {
+          await sendMsg(BOT_TOKEN, chatId, `❌ Сотрудник @${targetUsername} не найден. Убедитесь, что он зарегистрирован.`, undefined, threadId);
+        } else {
+          await supabase.from('staff').update({ role: 'admin' }).eq('id', target.id);
+          await sendMsg(BOT_TOKEN, chatId, `👑 @${targetUsername} (${target.full_name}) назначен администратором!`, undefined, threadId);
+        }
+        return ok();
+      }
+    }
+
+    // --- Photo: save to active shift ---
+    if (message.photo && message.photo.length > 0 && staff) {
+      const { data: activeShift } = await supabase.from('staff_shifts').select('*').eq('staff_id', staff.id).eq('is_active', true).single();
+      if (activeShift) {
+        const photo = message.photo[message.photo.length - 1];
+        const fileInfo = await tgApi(BOT_TOKEN, 'getFile', { file_id: photo.file_id });
+        const photoUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileInfo.result.file_path}`;
+        await supabase.from('staff_shifts').update({ photo_url: photoUrl }).eq('id', activeShift.id);
+        await sendMsg(BOT_TOKEN, chatId, '📸 Фото точки сохранено!', undefined, threadId);
+        return ok();
+      }
+    }
+
+    // ==================== EXCEL FILE ====================
+    const doc = extractDocument(message);
+    if (doc) {
+      const fileName = (doc.file_name || '').toLowerCase();
+      const isXlsx = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || doc.mime_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      if (!isXlsx) {
+        if (chatType === 'private') await sendMsg(BOT_TOKEN, chatId, '❌ Поддерживаются только .xlsx файлы.');
+        return ok();
+      }
+
+      await sendMsg(BOT_TOKEN, chatId, '⏳ Обрабатываю файл...', undefined, threadId);
+      const fileInfoRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${doc.file_id}`);
+      const fileInfo = await fileInfoRes.json();
+      const filePath = fileInfo.result?.file_path;
+      if (!filePath) throw new Error('Cannot get file path');
+
+      const fileRes = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`);
+      const fileBuffer = await fileRes.arrayBuffer();
+      const locations = parseExcelBuffer(fileBuffer);
+
+      if (locations.length === 0) {
+        await sendMsg(BOT_TOKEN, chatId, '❌ Не удалось распарсить файл.', undefined, threadId);
+        return ok();
+      }
+
+      const { data: report, error: reportError } = await supabase.from('reports').insert({
+        file_name: doc.file_name || 'telegram.xlsx', file_size: doc.file_size || 0,
+        file_type: 'xlsx', source: 'telegram',
+        telegram_chat_id: String(chatId), telegram_username: username,
+      }).select('id, share_id').single();
+      if (reportError) throw reportError;
+
+      for (let i = 0; i < locations.length; i += 500) {
+        const batch = locations.slice(i, i + 500).map((loc, idx) => ({
+          report_id: report.id, sheet_name: loc.sheetName, row_index: i + idx, data: loc,
+        }));
+        await supabase.from('report_rows').insert(batch);
+      }
+
+      const shareUrl = `${APP_URL}/r/${report.share_id}`;
+      const statusCounts: Record<string, number> = {};
+      const regionCounts: Record<string, number> = {};
+      for (const loc of locations) {
+        statusCounts[loc.status.toLowerCase()] = (statusCounts[loc.status.toLowerCase()] || 0) + 1;
+        regionCounts[loc.region] = (regionCounts[loc.region] || 0) + 1;
+      }
+      const topStatuses = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([s, c]) => `  • ${s}: ${c}`).join('\n');
+      const topRegions = Object.entries(regionCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([r, c]) => `  • ${r}: ${c}`).join('\n');
+
+      await sendMsg(BOT_TOKEN, chatId, `✅ <b>Дашборд готов!</b>\n\n📁 ${doc.file_name}\n📊 ${locations.length} локаций\n\nСтатусы:\n${topStatuses}\n\nРегионы:\n${topRegions}`,
+        { inline_keyboard: [[{ text: '📊 Открыть дашборд', url: shareUrl }]] }, threadId
       );
       return ok();
     }
 
-    // --- /report (admin) ---
-    if (text === '/report') {
-      const { data: staff } = await supabase.from('staff').select('*').eq('telegram_user_id', userId).single();
-      if (!staff || staff.role !== 'admin') {
-        await sendMsg(BOT_TOKEN, chatId, '❌ Команда доступна только администраторам.', undefined, threadId);
-        return ok();
-      }
-
-      await sendMsg(BOT_TOKEN, chatId, '📊 Сформировать отчёт по сотрудникам?', {
-        inline_keyboard: [[{ text: '📊 Сформировать отчёт', callback_data: 'staff_report' }]]
-      }, threadId);
-      return ok();
+    // --- Default: show menu in private chats ---
+    if (chatType === 'private') {
+      const isRegistered = !!staff && staff.full_name !== '—';
+      const isAdmin = staff?.role === 'admin';
+      await sendMsg(BOT_TOKEN, chatId, '👆 Выберите действие:', mainMenuKeyboard(isRegistered, isAdmin), threadId);
     }
-
-    // --- Check if user is awaiting location (has no active shift but is registered) ---
-    if (text && !text.startsWith('/')) {
-      const { data: staff } = await supabase.from('staff').select('*').eq('telegram_user_id', userId).single();
-      if (staff) {
-        const { data: activeShift } = await supabase.from('staff_shifts').select('*').eq('staff_id', staff.id).eq('is_active', true).single();
-        if (!activeShift) {
-          // Check if last shift was recently closed (location change scenario)
-          const { data: lastShift } = await supabase.from('staff_shifts').select('*').eq('staff_id', staff.id).order('ended_at', { ascending: false }).limit(1).single();
-          if (lastShift && lastShift.ended_at) {
-            const endedAt = new Date(lastShift.ended_at).getTime();
-            const now = Date.now();
-            // If shift ended within last 5 minutes, treat as location change
-            if (now - endedAt < 5 * 60 * 1000) {
-              const { data: newShift } = await supabase.from('staff_shifts').insert({
-                staff_id: staff.id,
-                location_address: text,
-              }).select('id').single();
-
-              // Count today's activities across all shifts
-              const today = new Date(); today.setHours(0,0,0,0);
-              const { count: sales } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('staff_id', staff.id).gte('created_at', today.toISOString()).eq('activity_type', 'sale');
-              const { count: activations } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('staff_id', staff.id).gte('created_at', today.toISOString()).eq('activity_type', 'activation');
-              const { count: topups } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('staff_id', staff.id).gte('created_at', today.toISOString()).eq('activity_type', 'topup');
-
-              await sendMsg(BOT_TOKEN, chatId,
-                `📍 <b>${text}</b>\n👤 ${staff.full_name}\n\n🛒 Продажи: ${sales || 0}\n📱 Активации: ${activations || 0}\n💰 Пополнения: ${topups || 0}`,
-                shiftKeyboard(sales || 0, activations || 0, topups || 0), threadId
-              );
-              return ok();
-            }
-          }
-        }
-      }
-    }
-
-    // --- Photo (for shift opening with photo) ---
-    if (message.photo && message.photo.length > 0) {
-      const { data: staff } = await supabase.from('staff').select('*').eq('telegram_user_id', userId).single();
-      if (staff) {
-        const { data: activeShift } = await supabase.from('staff_shifts').select('*').eq('staff_id', staff.id).eq('is_active', true).single();
-        if (activeShift && !activeShift.photo_url) {
-          // Get the largest photo
-          const photo = message.photo[message.photo.length - 1];
-          const fileInfo = await tgApi(BOT_TOKEN, 'getFile', { file_id: photo.file_id });
-          const photoUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileInfo.result.file_path}`;
-          await supabase.from('staff_shifts').update({ photo_url: photoUrl }).eq('id', activeShift.id);
-          await sendMsg(BOT_TOKEN, chatId, '📸 Фото точки сохранено!', undefined, threadId);
-          return ok();
-        }
-      }
-    }
-
-    // ===== EXCEL FILE PROCESSING (existing logic) =====
-    const docResult = extractDocument(message);
-    const doc = docResult?.doc;
-
-    if (!doc) {
-      if (chatType !== 'private') return ok();
-      await sendMsg(BOT_TOKEN, chatId, '📎 Отправьте Excel-файл или используйте /reg /shift /report');
-      return ok();
-    }
-
-    const fileName = (doc.file_name || '').toLowerCase();
-    const isXlsx = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || doc.mime_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    if (!isXlsx) {
-      if (chatType !== 'private') return ok();
-      await sendMsg(BOT_TOKEN, chatId, '❌ Поддерживаются только .xlsx файлы.');
-      return ok();
-    }
-
-    await sendMsg(BOT_TOKEN, chatId, '⏳ Обрабатываю файл...', undefined, threadId);
-
-    const fileInfoRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${doc.file_id}`);
-    const fileInfo = await fileInfoRes.json();
-    const filePath = fileInfo.result?.file_path;
-    if (!filePath) throw new Error('Cannot get file path');
-
-    const fileRes = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`);
-    const fileBuffer = await fileRes.arrayBuffer();
-    const locations = parseExcelBuffer(fileBuffer);
-
-    if (locations.length === 0) {
-      await sendMsg(BOT_TOKEN, chatId, '❌ Не удалось распарсить файл.', undefined, threadId);
-      return ok();
-    }
-
-    const { data: report, error: reportError } = await supabase.from('reports').insert({
-      file_name: doc.file_name || 'telegram.xlsx', file_size: doc.file_size || 0,
-      file_type: 'xlsx', source: 'telegram',
-      telegram_chat_id: String(chatId), telegram_username: username,
-    }).select('id, share_id').single();
-    if (reportError) throw reportError;
-
-    const batchSize = 500;
-    for (let i = 0; i < locations.length; i += batchSize) {
-      const batch = locations.slice(i, i + batchSize).map((loc, idx) => ({
-        report_id: report.id, sheet_name: loc.sheetName, row_index: i + idx, data: loc,
-      }));
-      await supabase.from('report_rows').insert(batch);
-    }
-
-    const shareUrl = `${APP_URL}/r/${report.share_id}`;
-    const statusCounts: Record<string, number> = {};
-    const regionCounts: Record<string, number> = {};
-    for (const loc of locations) {
-      statusCounts[loc.status.toLowerCase()] = (statusCounts[loc.status.toLowerCase()] || 0) + 1;
-      regionCounts[loc.region] = (regionCounts[loc.region] || 0) + 1;
-    }
-    const topStatuses = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([s, c]) => `  • ${s}: ${c}`).join('\n');
-    const topRegions = Object.entries(regionCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([r, c]) => `  • ${r}: ${c}`).join('\n');
-
-    await sendMsg(BOT_TOKEN, chatId, `✅ <b>Дашборд готов!</b>\n\n📁 ${doc.file_name}\n📊 ${locations.length} локаций\n\nСтатусы:\n${topStatuses}\n\nРегионы:\n${topRegions}`,
-      { inline_keyboard: [[{ text: '📊 Открыть дашборд', url: shareUrl }]] }, threadId
-    );
 
     return ok();
   } catch (error) {
