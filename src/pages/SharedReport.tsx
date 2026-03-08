@@ -12,6 +12,7 @@ import DataTable from '@/components/DataTable';
 import SheetTabs from '@/components/SheetTabs';
 import DrillDownDrawer, { DrillDownContext } from '@/components/DrillDownDrawer';
 import AiReportPanel from '@/components/AiReportPanel';
+import NewLocationsChart from '@/components/NewLocationsChart';
 import ThemeToggle from '@/components/ThemeToggle';
 import { LayoutDashboard, Loader2, AlertCircle, Home } from 'lucide-react';
 
@@ -112,6 +113,7 @@ const SharedReport = () => {
           <OpeningTimeline data={filteredData} onDrillDown={handleDrillDown} />
           <RegionStatusHeatmap data={filteredData} onDrillDown={handleDrillDown} />
         </div>
+        <NewLocationsChart />
         <AiReportPanel data={filteredData} />
         <DataTable data={filteredData} />
       </main>
