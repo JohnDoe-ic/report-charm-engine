@@ -435,6 +435,15 @@ Deno.serve(async (req) => {
     const threadId = message.message_thread_id;
     const text = (message.text || '').trim();
 
+    // --- Ignore non-command, non-document messages in group chats ---
+    const isGroupChat = chatType === 'group' || chatType === 'supergroup';
+    const isCommand = text.startsWith('/');
+    const hasDocument = !!extractDocument(message);
+    const hasPhoto = !!(message.photo && message.photo.length > 0);
+    if (isGroupChat && !isCommand && !hasDocument && !hasPhoto) {
+      return ok();
+    }
+
     // --- /start → main menu ---
     if (text === '/start' || text === '/menu') {
       const staff = await getOrCreateStaffEntry(supabase, userId, username);
