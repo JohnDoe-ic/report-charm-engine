@@ -111,10 +111,17 @@ function shiftKeyboard(sales: number, activations: number, topups: number) {
   return {
     inline_keyboard: [
       [
-        { text: `🛒 Продажа (${sales})`, callback_data: 'staff_sale' },
-        { text: `📱 Активация (${activations})`, callback_data: 'staff_activation' },
+        { text: `🛒 +Продажа (${sales})`, callback_data: 'staff_sale' },
+        { text: sales > 0 ? `🛒 -1` : ' ', callback_data: sales > 0 ? 'undo_sale' : 'noop' },
       ],
-      [{ text: `💰 Пополнение (${topups})`, callback_data: 'staff_topup' }],
+      [
+        { text: `📱 +Активация (${activations})`, callback_data: 'staff_activation' },
+        { text: activations > 0 ? `📱 -1` : ' ', callback_data: activations > 0 ? 'undo_activation' : 'noop' },
+      ],
+      [
+        { text: `💰 +Пополнение (${topups})`, callback_data: 'staff_topup' },
+        { text: topups > 0 ? `💰 -1` : ' ', callback_data: topups > 0 ? 'undo_topup' : 'noop' },
+      ],
       [
         { text: '📍 Сменить локацию', callback_data: 'staff_change_location' },
         { text: '🏁 Завершить смену', callback_data: 'staff_end_shift' },
