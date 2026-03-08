@@ -330,6 +330,95 @@ Deno.serve(async (req) => {
         return ok();
       }
 
+      // --- Admin: edit shifts - select staff ---
+      if (data === 'admin_edit_shifts') {
+        if (!staff || staff.role !== 'admin') { await answerCb(BOT_TOKEN, cb.id, '❌ Только для админов'); return ok(); }
+        const { data: allStaff } = await supabase.from('staff').select('id, full_name').neq('full_name', '—').order('full_name');
+        if (!allStaff || allStaff.length === 0) { await answerCb(BOT_TOKEN, cb.id, 'Нет сотрудников'); return ok(); }
+        const buttons = allStaff.map((s: any) => [{ text: s.full_name, callback_data: `edit_staff_${s.id}` }]);
+        buttons.push([{ text: '◀️ Назад', callback_data: 'edit_done' }]);
+        await answerCb(BOT_TOKEN, cb.id);
+        await sendMsg(BOT_TOKEN, chatId, '✏️ <b>Корректировка смен</b>\n\nВыберите сотрудника:', { inline_keyboard: buttons });
+        return ok();
+      }
+
+      // --- Admin: edit shifts - select shift for a staff member ---
+      if (data.startsWith('edit_staff_')) {
+        if (!staff || staff.role !== 'admin') { await answerCb(BOT_TOKEN, cb.id, '❌ Только для админов'); return ok(); }
+        const targetStaffId = data.replace('edit_staff_', '');
+        const { data: targetStaff } = await supabase.from('staff').select('full_name').eq('id', targetStaffId).single();
+        const { data: shifts } = await supabase.from('staff_shifts').select('id, location_address, started_at, is_active').eq('staff_id', targetStaffId).order('started_at', { ascending: false }).limit(10);
+        if (!shifts || shifts.length === 0) { await answerCb(BOT_TOKEN, cb.id, 'Нет смен'); return ok(); }
+        const buttons = shifts.map((sh: any) => {
+          const date = new Date(sh.started_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+          const label = `${date} — ${sh.location_address}${sh.is_active ? ' 🟢' : ''}`;
+          return [{ text: label, callback_data: `edit_shift_${sh.id}` }];
+        });
+        buttons.push([{ text: '◀️ Назад', callback_data: 'admin_edit_shifts' }]);
+        await answerCb(BOT_TOKEN, cb.id);
+        await editMsg(BOT_TOKEN, chatId, messageId, `✏️ Смены: <b>${targetStaff?.full_name || '?'}</b>\n\nВыберите смену:`, { inline_keyboard: buttons });
+        return ok();
+      }
+
+      // --- Admin: edit shift - show edit keyboard ---
+      if (data.startsWith('edit_shift_')) {
+        if (!staff || staff.role !== 'admin') { await answerCb(BOT_TOKEN, cb.id, '❌ Только для админов'); return ok(); }
+        const shiftId = data.replace('edit_shift_', '');
+        const { data: sh } = await supabase.from('staff_shifts').select('*, staff(full_name)').eq('id', shiftId).single();
+        if (!sh) { await answerCb(BOT_TOKEN, cb.id, 'Смена не найдена'); return ok(); }
+        const counts = await getShiftCounts(supabase, shiftId);
+        const date = new Date(sh.started_at).toLocaleDateString('ru-RU');
+        const staffName = (sh as any).staff?.full_name || '?';
+        await answerCb(BOT_TOKEN, cb.id);
+        await editMsg(BOT_TOKEN, chatId, messageId,
+          `✏️ <b>Корректировка</b>\n👤 ${staffName}\n📍 ${sh.location_address}\n📅 ${date}`,
+          editShiftKeyboard(shiftId, counts.sales, counts.activations, counts.topups)
+        );
+        return ok();
+      }
+
+      // --- Admin: edit shift +/- activity ---
+      if (data.startsWith('edit_add_') || data.startsWith('edit_rm_')) {
+        if (!staff || staff.role !== 'admin') { await answerCb(BOT_TOKEN, cb.id, '❌ Только для админов'); return ok(); }
+        const isAdd = data.startsWith('edit_add_');
+        const rest = data.replace(isAdd ? 'edit_add_' : 'edit_rm_', '');
+        // rest = "sale_UUID" or "act_UUID" or "top_UUID"
+        const typeKey = rest.substring(0, rest.indexOf('_'));
+        const shiftId = rest.substring(rest.indexOf('_') + 1);
+        const typeMap: Record<string, string> = { sale: 'sale', act: 'activation', top: 'topup' };
+        const actType = typeMap[typeKey];
+        if (!actType) { await answerCb(BOT_TOKEN, cb.id); return ok(); }
+
+        // Get staff_id for the shift
+        const { data: sh } = await supabase.from('staff_shifts').select('staff_id, location_address, started_at, staff(full_name)').eq('id', shiftId).single();
+        if (!sh) { await answerCb(BOT_TOKEN, cb.id, 'Смена не найдена'); return ok(); }
+
+        if (isAdd) {
+          await supabase.from('staff_activities').insert({ staff_id: sh.staff_id, shift_id: shiftId, activity_type: actType });
+          await answerCb(BOT_TOKEN, cb.id, '✅ +1');
+        } else {
+          const { data: last } = await supabase.from('staff_activities').select('id').eq('shift_id', shiftId).eq('activity_type', actType).order('created_at', { ascending: false }).limit(1).single();
+          if (last) await supabase.from('staff_activities').delete().eq('id', last.id);
+          await answerCb(BOT_TOKEN, cb.id, '↩️ -1');
+        }
+
+        const counts = await getShiftCounts(supabase, shiftId);
+        const date = new Date(sh.started_at).toLocaleDateString('ru-RU');
+        const staffName = (sh as any).staff?.full_name || '?';
+        await editMsg(BOT_TOKEN, chatId, messageId,
+          `✏️ <b>Корректировка</b>\n👤 ${staffName}\n📍 ${sh.location_address}\n📅 ${date}`,
+          editShiftKeyboard(shiftId, counts.sales, counts.activations, counts.topups)
+        );
+        return ok();
+      }
+
+      // --- Admin: done editing ---
+      if (data === 'edit_done') {
+        await answerCb(BOT_TOKEN, cb.id);
+        await editMsg(BOT_TOKEN, chatId, messageId, '✅ Корректировка завершена.\n\nНажмите /start для главного меню.');
+        return ok();
+      }
+
       if (data === 'noop') { await answerCb(BOT_TOKEN, cb.id); return ok(); }
       await answerCb(BOT_TOKEN, cb.id);
       return ok();
