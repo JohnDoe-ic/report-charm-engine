@@ -235,6 +235,28 @@ Deno.serve(async (req) => {
         return ok();
       }
 
+      // --- Undo activity buttons ---
+      if (data === 'undo_sale' || data === 'undo_activation' || data === 'undo_topup') {
+        if (!shift) { await answerCb(BOT_TOKEN, cb.id, '❌ Нет активной смены'); return ok(); }
+        const undoMap: Record<string, string> = { undo_sale: 'sale', undo_activation: 'activation', undo_topup: 'topup' };
+        const labelMap: Record<string, string> = { undo_sale: 'Продажа', undo_activation: 'Активация', undo_topup: 'Пополнение' };
+        const actType = undoMap[data];
+        // Delete the most recent activity of this type
+        const { data: lastActivity } = await supabase.from('staff_activities').select('id').eq('shift_id', shift.id).eq('activity_type', actType).order('created_at', { ascending: false }).limit(1).single();
+        if (lastActivity) {
+          await supabase.from('staff_activities').delete().eq('id', lastActivity.id);
+        }
+        const { count: s } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'sale');
+        const { count: a } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'activation');
+        const { count: t } = await supabase.from('staff_activities').select('*', { count: 'exact', head: true }).eq('shift_id', shift.id).eq('activity_type', 'topup');
+        await answerCb(BOT_TOKEN, cb.id, `↩️ ${labelMap[data]} -1`);
+        await editMsg(BOT_TOKEN, chatId, messageId,
+          `📍 <b>${shift.location_address}</b>\n👤 ${staff.full_name}\n\n🛒 Продажи: ${s||0}\n📱 Активации: ${a||0}\n💰 Пополнения: ${t||0}`,
+          shiftKeyboard(s||0, a||0, t||0)
+        );
+        return ok();
+      }
+
       if (data === 'staff_end_shift') {
         if (!shift) { await answerCb(BOT_TOKEN, cb.id, '❌ Нет активной смены'); return ok(); }
         await supabase.from('staff_shifts').update({ is_active: false, ended_at: new Date().toISOString() }).eq('id', shift.id);
