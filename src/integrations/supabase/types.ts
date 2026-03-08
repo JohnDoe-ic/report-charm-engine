@@ -82,6 +82,113 @@ export type Database = {
         }
         Relationships: []
       }
+      staff: {
+        Row: {
+          account_number: string
+          full_name: string
+          id: string
+          registered_at: string
+          role: string
+          telegram_user_id: number
+          telegram_username: string | null
+        }
+        Insert: {
+          account_number: string
+          full_name: string
+          id?: string
+          registered_at?: string
+          role?: string
+          telegram_user_id: number
+          telegram_username?: string | null
+        }
+        Update: {
+          account_number?: string
+          full_name?: string
+          id?: string
+          registered_at?: string
+          role?: string
+          telegram_user_id?: number
+          telegram_username?: string | null
+        }
+        Relationships: []
+      }
+      staff_activities: {
+        Row: {
+          activity_type: string
+          created_at: string
+          id: string
+          shift_id: string
+          staff_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          id?: string
+          shift_id: string
+          staff_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          id?: string
+          shift_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_activities_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "staff_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_activities_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_shifts: {
+        Row: {
+          ended_at: string | null
+          id: string
+          is_active: boolean
+          location_address: string
+          photo_url: string | null
+          staff_id: string
+          started_at: string
+        }
+        Insert: {
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean
+          location_address: string
+          photo_url?: string | null
+          staff_id: string
+          started_at?: string
+        }
+        Update: {
+          ended_at?: string | null
+          id?: string
+          is_active?: boolean
+          location_address?: string
+          photo_url?: string | null
+          staff_id?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_shifts_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
