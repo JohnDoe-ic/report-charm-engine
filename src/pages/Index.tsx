@@ -13,6 +13,7 @@ import DataTable from '@/components/DataTable';
 import SheetTabs from '@/components/SheetTabs';
 import DrillDownDrawer, { DrillDownContext } from '@/components/DrillDownDrawer';
 import AiReportPanel from '@/components/AiReportPanel';
+import ThemeToggle from '@/components/ThemeToggle';
 import { LayoutDashboard, RotateCcw, Link as LinkIcon, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -79,37 +80,40 @@ const Index = () => {
             <LayoutDashboard className="h-5 w-5 text-primary" />
             <h1 className="text-base font-bold tracking-tight font-display">САЛОНЫ</h1>
           </div>
-          {allData && (
-            <div className="flex items-center gap-4">
-              {saving && (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Сохранение...
+          <div className="flex items-center gap-3">
+            {allData && (
+              <>
+                {saving && (
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Сохранение...
+                  </span>
+                )}
+                {savedReport && (
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5" /> : <LinkIcon className="h-3.5 w-3.5" />}
+                    {copied ? 'Скопировано' : 'Поделиться'}
+                  </button>
+                )}
+                <span className="text-xs text-muted-foreground font-display">
+                  {filteredData.length} локаций
                 </span>
-              )}
-              {savedReport && (
                 <button
                   type="button"
-                  onClick={handleCopyLink}
-                  className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors"
+                  onClick={() => { setAllData(null); setActiveSheet('all'); setSavedReport(null); }}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {copied ? <Check className="h-3.5 w-3.5" /> : <LinkIcon className="h-3.5 w-3.5" />}
-                  {copied ? 'Скопировано' : 'Поделиться'}
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Сброс
                 </button>
-              )}
-              <span className="text-xs text-muted-foreground font-display">
-                {filteredData.length} локаций
-              </span>
-              <button
-                type="button"
-                onClick={() => { setAllData(null); setActiveSheet('all'); setSavedReport(null); }}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Сброс
-              </button>
-            </div>
-          )}
+              </>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
