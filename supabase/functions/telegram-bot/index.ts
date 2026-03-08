@@ -577,6 +577,30 @@ Deno.serve(async (req) => {
         await supabase.from('report_rows').insert(batch);
       }
 
+      // --- Track new locations ---
+      const { count: existingCount } = await supabase.from('tracked_locations').select('*', { count: 'exact', head: true });
+      const isBaseline = (existingCount || 0) === 0;
+      let newLocCount = 0;
+
+      for (let i = 0; i < locations.length; i += 200) {
+        const batch = locations.slice(i, i + 200);
+        const inserts = batch.map(loc => {
+          const key = `${loc.region}||${loc.city}||${loc.address}`.toLowerCase().trim();
+          return {
+            location_key: key,
+            region: loc.region,
+            city: loc.city,
+            address: loc.address,
+            status: loc.status,
+            salon_format: loc.salonFormat || null,
+            first_report_id: report.id,
+            is_baseline: isBaseline,
+          };
+        });
+        const { data: inserted } = await supabase.from('tracked_locations').upsert(inserts, { onConflict: 'location_key', ignoreDuplicates: true }).select('id');
+        newLocCount += (inserted?.length || 0);
+      }
+
       const shareUrl = `${APP_URL}/r/${report.share_id}`;
       const statusCounts: Record<string, number> = {};
       const regionCounts: Record<string, number> = {};
@@ -586,8 +610,9 @@ Deno.serve(async (req) => {
       }
       const topStatuses = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([s, c]) => `  • ${s}: ${c}`).join('\n');
       const topRegions = Object.entries(regionCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([r, c]) => `  • ${r}: ${c}`).join('\n');
+      const newLocText = isBaseline ? `\n\n🆕 Базовая загрузка (${locations.length} точек)` : `\n\n🆕 Новых точек: ${newLocCount}`;
 
-      await sendMsg(BOT_TOKEN, chatId, `✅ <b>Дашборд готов!</b>\n\n📁 ${doc.file_name}\n📊 ${locations.length} локаций\n\nСтатусы:\n${topStatuses}\n\nРегионы:\n${topRegions}`,
+      await sendMsg(BOT_TOKEN, chatId, `✅ <b>Дашборд готов!</b>\n\n📁 ${doc.file_name}\n📊 ${locations.length} локаций${newLocText}\n\nСтатусы:\n${topStatuses}\n\nРегионы:\n${topRegions}`,
         { inline_keyboard: [[{ text: '📊 Открыть дашборд', url: shareUrl }]] }, threadId
       );
       return ok();
