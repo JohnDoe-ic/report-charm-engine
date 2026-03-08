@@ -101,6 +101,7 @@ function mainMenuKeyboard(isRegistered: boolean, isAdmin: boolean) {
         { text: '📊 Отчёт по сотрудникам', callback_data: 'staff_report' },
         { text: '👑 Назначить админа', callback_data: 'menu_set_admin' },
       ]);
+      rows.push([{ text: '✏️ Корректировка смен', callback_data: 'admin_edit_shifts' }]);
     }
   }
   rows.push([{ text: '📁 Загрузить Excel', callback_data: 'menu_excel_hint' }]);
