@@ -3,30 +3,20 @@ export interface SalonLocation {
   region: string;
   city: string;
   district?: string;
-  settlement?: string;
   address: string;
   commercialPartner?: string;
-  commerceApproval?: string;
+  probability?: string;
+  regionApproval?: string;
+  kcApproval?: string;
   salonFormat: string;
-  photoLink?: string;
+  rentStatus?: string;
+  salonType?: string;
+  furnitureStatus?: string;
+  repair?: string;
+  repairStatus?: string;
   status: string;
   comment?: string;
   openingDate?: string;
-  rentDate?: string;
-  rentAmount?: string;
-  rentArea?: string;
-  rentPricePerMeter?: string;
-  landlord?: string;
-  rentComment?: string;
-  repairMeasurements?: string;
-  repairDrawing?: string;
-  repairEstimate?: string;
-  repairTimeline?: string;
-  repairFormat?: string;
-  repairComment?: string;
-  furnitureDrawing?: string;
-  furnitureMeasurements?: string;
-  furnitureOrder?: string;
   sheetName: string;
 }
 
@@ -34,10 +24,10 @@ export type StatusKey = 'open' | 'contract' | 'evaluation' | 'no-rent' | 'reject
 
 export function normalizeStatus(raw: string): { key: StatusKey; label: string } {
   const s = raw.toLowerCase().trim();
-  if (s === 'открыт') return { key: 'open', label: 'Открыт' };
-  if (s.includes('выходим на договор') || s.includes('комерция согласовала')) return { key: 'contract', label: 'Выходим на договор' };
-  if (s === 'оценка' || s.includes('смотрит коммерция')) return { key: 'evaluation', label: 'Оценка' };
-  if (s.includes('нет аренды')) return { key: 'no-rent', label: 'Нет аренды' };
-  if (s.includes('не согласовала')) return { key: 'rejected', label: 'Коммерция не согласовала' };
+  if (s === 'открыт' || s === 'открыто') return { key: 'open', label: 'Открыт' };
+  if (s.includes('выходим на договор') || s.includes('комерция согласовала') || s.includes('договор')) return { key: 'contract', label: 'Выходим на договор' };
+  if (s === 'оценка' || s.includes('смотрит коммерция') || s.includes('поиск')) return { key: 'evaluation', label: 'Оценка' };
+  if (s.includes('нет аренды') || s.includes('нет помещени')) return { key: 'no-rent', label: 'Нет аренды' };
+  if (s.includes('не согласовала') || s.includes('отказ')) return { key: 'rejected', label: 'Отказ' };
   return { key: 'other', label: raw || 'Не указан' };
 }

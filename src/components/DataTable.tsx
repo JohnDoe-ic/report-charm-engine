@@ -1,19 +1,10 @@
 import { useState, useMemo } from 'react';
 import { SalonLocation, normalizeStatus, StatusKey } from '@/lib/types';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 
@@ -56,7 +47,8 @@ const DataTable = ({ data }: DataTableProps) => {
         return (
           d.address.toLowerCase().includes(q) ||
           d.city.toLowerCase().includes(q) ||
-          (d.comment || '').toLowerCase().includes(q)
+          (d.commercialPartner || '').toLowerCase().includes(q) ||
+          (d.district || '').toLowerCase().includes(q)
         );
       }
       return true;
@@ -126,11 +118,19 @@ const DataTable = ({ data }: DataTableProps) => {
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent">
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Регион</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Город</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Город/НП</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Район</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Адрес</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Партнер</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Вероятность</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">КБ региона</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">КЦ</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Формат</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Статус</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Комментарий</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Аренда</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Тип</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Мебель</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Ремонт</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Ст. ремонта</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -140,16 +140,20 @@ const DataTable = ({ data }: DataTableProps) => {
                 <TableRow key={row.id} className="border-border/50 hover:bg-secondary/50">
                   <TableCell className="text-xs font-medium">{row.region}</TableCell>
                   <TableCell className="text-xs">{row.city}</TableCell>
-                  <TableCell className="text-xs max-w-[220px] truncate">{row.address}</TableCell>
+                  <TableCell className="text-xs">{row.district}</TableCell>
+                  <TableCell className="text-xs max-w-[200px] truncate">{row.address}</TableCell>
+                  <TableCell className="text-xs max-w-[140px] truncate">{row.commercialPartner}</TableCell>
+                  <TableCell className="text-xs">{row.probability}</TableCell>
+                  <TableCell className="text-xs">{row.regionApproval}</TableCell>
+                  <TableCell className="text-xs">{row.kcApproval}</TableCell>
                   <TableCell className="text-xs">{row.salonFormat}</TableCell>
                   <TableCell>
-                    <span className={`status-badge border ${statusBadgeStyles[key]}`}>
-                      {label}
-                    </span>
+                    <span className={`status-badge border ${statusBadgeStyles[key]}`}>{label}</span>
                   </TableCell>
-                  <TableCell className="text-xs max-w-[250px] truncate text-muted-foreground">
-                    {row.comment}
-                  </TableCell>
+                  <TableCell className="text-xs">{row.salonType}</TableCell>
+                  <TableCell className="text-xs">{row.furnitureStatus}</TableCell>
+                  <TableCell className="text-xs">{row.repair}</TableCell>
+                  <TableCell className="text-xs">{row.repairStatus}</TableCell>
                 </TableRow>
               );
             })}
