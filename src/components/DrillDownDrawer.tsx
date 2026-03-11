@@ -53,10 +53,12 @@ const DrillDownDrawer = ({ open, onOpenChange, context }: DrillDownDrawerProps) 
 
   const handleExportCSV = () => {
     if (!context) return;
-    const headers = ['Регион', 'Город', 'Адрес', 'Формат', 'Статус', 'Комментарий', 'Лист'];
+    const headers = ['Регион', 'Город/НП', 'Район', 'Адрес', 'Партнер', 'Вероятность', 'КБ региона', 'КЦ', 'Формат', 'Статус аренды', 'Тип салона', 'Мебель', 'Ремонт', 'Ст. ремонта', 'Лист'];
     const csvRows = context.rows.map((r) => [
-      r.region, r.city, r.address, r.salonFormat,
-      normalizeStatus(r.status).label, r.comment || '', r.sheetName,
+      r.region, r.city, r.district || '', r.address, r.commercialPartner || '',
+      r.probability || '', r.regionApproval || '', r.kcApproval || '',
+      r.salonFormat, normalizeStatus(r.status).label, r.salonType || '',
+      r.furnitureStatus || '', r.repair || '', r.repairStatus || '', r.sheetName,
     ]);
     const csv = [headers, ...csvRows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
