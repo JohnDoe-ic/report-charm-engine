@@ -9,6 +9,7 @@ import FormatChart from '@/components/FormatChart';
 import RegionBreakdown from '@/components/RegionBreakdown';
 import OpeningTimeline from '@/components/OpeningTimeline';
 import RegionStatusHeatmap from '@/components/RegionStatusHeatmap';
+import ExtraCharts from '@/components/ExtraCharts';
 import DataTable from '@/components/DataTable';
 import SheetTabs from '@/components/SheetTabs';
 import DrillDownDrawer, { DrillDownContext } from '@/components/DrillDownDrawer';
@@ -132,11 +133,12 @@ const Index = () => {
               <RegionBreakdown data={filteredData} onDrillDown={handleDrillDown} />
               <FormatChart data={filteredData} onDrillDown={handleDrillDown} />
             </div>
+            <ExtraCharts data={filteredData} onDrillDown={handleDrillDown} />
+            <RegionStatusHeatmap data={filteredData} onDrillDown={handleDrillDown} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <OpeningTimeline data={filteredData} onDrillDown={handleDrillDown} />
-              <RegionStatusHeatmap data={filteredData} onDrillDown={handleDrillDown} />
+              <NewLocationsChart />
             </div>
-            <NewLocationsChart />
             <AiReportPanel data={filteredData} />
             <DataTable data={filteredData} />
           </>

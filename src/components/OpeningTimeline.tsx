@@ -2,12 +2,7 @@ import { SalonLocation, normalizeStatus } from '@/lib/types';
 import { DrillDownContext } from './DrillDownDrawer';
 import { exportChartToExcel } from '@/lib/chartExport';
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { Download } from 'lucide-react';
 
@@ -19,8 +14,8 @@ interface OpeningTimelineProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-popover border border-border rounded-md px-3 py-2 text-sm shadow-lg">
-        <p className="text-foreground font-medium mb-1">{label}</p>
+      <div className="bg-popover border border-border rounded-lg px-3 py-2 text-sm shadow-xl">
+        <p className="text-foreground font-semibold mb-1">{label}</p>
         {payload.map((p: any) => (
           <div key={p.dataKey} className="text-xs text-muted-foreground">
             {p.name}: {p.value}
@@ -33,22 +28,25 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const OpeningTimeline = ({ data, onDrillDown }: OpeningTimelineProps) => {
-  // Group by opening date (month/year)
   const dateMap = new Map<string, { count: number; cumulative: number }>();
   const withDate = data.filter((d) => d.openingDate && d.openingDate.trim());
 
-  // Parse dates and sort
   const parsed = withDate.map((d) => {
     const raw = d.openingDate!.trim();
-    // Try common formats: DD.MM.YYYY, YYYY-MM-DD, etc.
     let date: Date | null = null;
     if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
       const [day, month, year] = raw.split('.');
       date = new Date(+year, +month - 1, +day);
+    } else if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(raw)) {
+      const parts = raw.split('/');
+      const month = +parts[0];
+      const day = +parts[1];
+      let year = +parts[2];
+      if (year < 100) year += 2000;
+      date = new Date(year, month - 1, day);
     } else if (/^\d{4}-\d{2}/.test(raw)) {
       date = new Date(raw);
     } else {
-      // Try Excel serial number
       const num = parseFloat(raw);
       if (!isNaN(num) && num > 40000) {
         date = new Date((num - 25569) * 86400 * 1000);
@@ -115,34 +113,23 @@ const OpeningTimeline = ({ data, onDrillDown }: OpeningTimelineProps) => {
           Excel
         </button>
       </div>
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={280}>
         <AreaChart data={chartData} onClick={handleClick} style={{ cursor: 'pointer' }}>
           <defs>
+            <linearGradient id="colorCum" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+            </linearGradient>
             <linearGradient id="colorOpened" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(175, 70%, 42%)" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="hsl(175, 70%, 42%)" stopOpacity={0} />
+              <stop offset="5%" stopColor="hsl(var(--status-open))" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="hsl(var(--status-open))" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="month" tick={{ fill: 'hsl(220,15%,70%)', fontSize: 10 }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill: 'hsl(220,10%,45%)', fontSize: 11 }} axisLine={false} tickLine={false} />
+          <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <Area
-            type="monotone"
-            dataKey="cumulative"
-            name="Накопительно"
-            stroke="hsl(175, 70%, 42%)"
-            fill="url(#colorOpened)"
-            strokeWidth={2}
-          />
-          <Area
-            type="monotone"
-            dataKey="opened"
-            name="Открыто"
-            stroke="hsl(140, 55%, 45%)"
-            fill="hsl(140, 55%, 45%)"
-            fillOpacity={0.2}
-            strokeWidth={2}
-          />
+          <Area type="monotone" dataKey="cumulative" name="Накопительно" stroke="hsl(var(--primary))" fill="url(#colorCum)" strokeWidth={2} />
+          <Area type="monotone" dataKey="opened" name="Открыто" stroke="hsl(var(--status-open))" fill="url(#colorOpened)" strokeWidth={2} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
