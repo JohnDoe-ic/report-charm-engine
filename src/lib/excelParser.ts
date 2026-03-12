@@ -31,10 +31,9 @@ export function parseExcelFile(data: ArrayBuffer): SalonLocation[] {
     const getCol = (name: string) => colMap[name] ?? -1;
     const getVal = (row: string[], name: string) => {
       const idx = getCol(name);
-      return idx !== -1 ? row[idx] || '' : '';
+      return idx !== -1 ? String(row[idx] || '').trim() : '';
     };
 
-    // Try multiple possible column name variants
     const getValMulti = (row: string[], ...names: string[]) => {
       for (const name of names) {
         const v = getVal(row, name);
@@ -46,32 +45,50 @@ export function parseExcelFile(data: ArrayBuffer): SalonLocation[] {
     for (let r = headerIdx + 1; r < rows.length; r++) {
       const row = rows[r].map(c => String(c).trim());
       const region = getVal(row, 'Регион');
-      const city = getValMulti(row, 'Город/НП', 'Город');
+      const city = getValMulti(row, 'Город', 'Город/НП');
       const address = getVal(row, 'Адрес');
       
-      // Skip rows without meaningful data
       if (!region && !city) continue;
 
-      const rentStatus = getValMulti(row, 'Статус аренды', 'Статус');
+      const status = getValMulti(row, 'Статус', 'Статус аренды');
       
       const loc: SalonLocation = {
         id: `loc-${idCounter++}`,
         region,
         city,
-        district: getValMulti(row, 'Район города/НП', 'Район') || undefined,
+        district: getValMulti(row, 'Район', 'Район города/НП') || undefined,
         address,
-        commercialPartner: getVal(row, 'Коммерческий партнер') || undefined,
+        commercialPartner: getValMulti(row, 'Коммерческий партнер') || undefined,
+        commercialApproval: getValMulti(row, 'Согласование коммерции', 'Согласование КБ региона', 'Согласование КБ') || undefined,
+        salonFormat: getValMulti(row, 'Формат салона', 'Формат') || '',
+        status: status || 'не указан',
+        comment: getValMulti(row, 'Комментарий', 'Комментари й') || undefined,
+        openingDate: getVal(row, 'Дата открытия') || undefined,
+        // Rent
+        rentDate: getValMulti(row, 'Дата заключения договора на аренду') || undefined,
+        rentAmount: getValMulti(row, 'Сумма, без НДС') || undefined,
+        rentArea: getValMulti(row, 'Арендуемая площадь') || undefined,
+        rentPricePerM: getValMulti(row, 'Стоимость метра, без ндс') || undefined,
+        landlord: getValMulti(row, 'Арендодатель') || undefined,
+        // Repair
+        repairMeasurements: getValMulti(row, 'Замеры', 'Замеры ремонт') || undefined,
+        repairDrawing: getValMulti(row, 'Отрисовка', 'Отрисовка ремонт') || undefined,
+        repairEstimate: getVal(row, 'Получение сметы от подрядчика') || undefined,
+        repairTimeline: getVal(row, 'Сроки ремонта') || undefined,
+        repairFormat: getVal(row, 'Формат ремонта') || undefined,
+        // Furniture
+        furnitureMeasurements: getValMulti(row, 'Замеры5', 'Замеры мебель') || undefined,
+        furnitureDrawing: getValMulti(row, 'Отрисовка4', 'Отрисовка мебель') || undefined,
+        furnitureOrder: getVal(row, 'Заказ') || undefined,
+        // Legacy
         probability: getVal(row, 'Вероятность') || undefined,
         regionApproval: getValMulti(row, 'Согласование КБ региона', 'Согласование КБ') || undefined,
-        kcApproval: getValMulti(row, 'Согласование КЦ') || undefined,
-        salonFormat: getValMulti(row, 'Формат салона', 'Формат') || '',
-        rentStatus: rentStatus || undefined,
+        kcApproval: getVal(row, 'Согласование КЦ') || undefined,
+        rentStatus: status || undefined,
         salonType: getVal(row, 'Тип салона') || undefined,
         furnitureStatus: getVal(row, 'Статус мебели') || undefined,
         repair: getVal(row, 'Ремонт') || undefined,
         repairStatus: getValMulti(row, 'Статус ремонт', 'Статус ремонта') || undefined,
-        status: rentStatus || 'не указан',
-        openingDate: getVal(row, 'Дата открытия') || undefined,
         sheetName,
       };
 
