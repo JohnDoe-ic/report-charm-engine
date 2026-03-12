@@ -5,7 +5,7 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
-  /* ===== LIGHT THEME (Superset-inspired) ===== */
+  /* ===== LIGHT THEME ===== */
   :root {
     --background: 220 20% 97%;
     --foreground: 220 20% 14%;
@@ -16,7 +16,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 14%;
 
-    --primary: 205 100% 44%;
+    --primary: 220 90% 56%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 93%;
@@ -33,39 +33,39 @@
 
     --border: 220 13% 88%;
     --input: 220 13% 88%;
-    --ring: 205 100% 44%;
+    --ring: 220 90% 56%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
-    --chart-1: 205 100% 44%;
-    --chart-2: 38 92% 50%;
-    --chart-3: 152 60% 40%;
+    --chart-1: 220 90% 56%;
+    --chart-2: 160 65% 45%;
+    --chart-3: 38 92% 50%;
     --chart-4: 0 72% 51%;
-    --chart-5: 270 50% 55%;
-    --chart-6: 195 70% 50%;
+    --chart-5: 280 60% 55%;
+    --chart-6: 195 80% 48%;
 
-    --status-open: 152 60% 40%;
-    --status-contract: 205 100% 44%;
+    --status-open: 152 68% 40%;
+    --status-contract: 220 90% 56%;
     --status-evaluation: 38 92% 50%;
     --status-no-rent: 220 10% 55%;
     --status-rejected: 0 72% 51%;
-    --status-other: 270 50% 55%;
-    --status-looking: 195 70% 50%;
+    --status-approved: 160 65% 45%;
+    --status-other: 280 60% 55%;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 20% 14%;
-    --sidebar-primary: 205 100% 44%;
+    --sidebar-primary: 220 90% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 93%;
     --sidebar-accent-foreground: 220 20% 30%;
     --sidebar-border: 220 13% 88%;
-    --sidebar-ring: 205 100% 44%;
+    --sidebar-ring: 220 90% 56%;
 
     --font-display: 'IBM Plex Mono', monospace;
     --font-body: 'Inter', sans-serif;
 
-    --glow-primary: 0 1px 3px hsl(220 13% 88% / 0.6);
-    --glow-accent: 0 1px 3px hsl(38 92% 50% / 0.1);
+    --glow-primary: 0 2px 8px hsl(220 90% 56% / 0.08);
+    --glow-accent: 0 2px 8px hsl(38 92% 50% / 0.08);
   }
 
   /* ===== DARK THEME ===== */
@@ -79,7 +79,7 @@
     --popover: 225 22% 11%;
     --popover-foreground: 220 15% 88%;
 
-    --primary: 175 70% 42%;
+    --primary: 210 100% 62%;
     --primary-foreground: 225 25% 6%;
 
     --secondary: 225 18% 14%;
@@ -94,36 +94,36 @@
     --destructive: 0 65% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 225 15% 15%;
-    --input: 225 15% 15%;
-    --ring: 175 70% 42%;
+    --border: 225 15% 16%;
+    --input: 225 15% 16%;
+    --ring: 210 100% 62%;
 
-    --chart-1: 175 70% 42%;
-    --chart-2: 38 90% 55%;
-    --chart-3: 140 55% 45%;
-    --chart-4: 0 65% 48%;
-    --chart-5: 270 50% 55%;
-    --chart-6: 200 70% 50%;
+    --chart-1: 210 100% 62%;
+    --chart-2: 160 65% 50%;
+    --chart-3: 38 90% 55%;
+    --chart-4: 0 65% 55%;
+    --chart-5: 280 60% 60%;
+    --chart-6: 195 80% 55%;
 
-    --status-open: 140 55% 45%;
-    --status-contract: 175 70% 42%;
+    --status-open: 152 68% 46%;
+    --status-contract: 210 100% 62%;
     --status-evaluation: 38 90% 55%;
-    --status-no-rent: 225 10% 40%;
-    --status-rejected: 0 65% 48%;
-    --status-other: 270 50% 55%;
-    --status-looking: 200 70% 50%;
+    --status-no-rent: 225 10% 42%;
+    --status-rejected: 0 65% 52%;
+    --status-approved: 160 65% 50%;
+    --status-other: 280 60% 60%;
 
     --sidebar-background: 225 22% 9%;
     --sidebar-foreground: 220 15% 85%;
-    --sidebar-primary: 175 70% 42%;
+    --sidebar-primary: 210 100% 62%;
     --sidebar-primary-foreground: 225 25% 6%;
     --sidebar-accent: 225 18% 14%;
     --sidebar-accent-foreground: 220 15% 75%;
-    --sidebar-border: 225 15% 15%;
-    --sidebar-ring: 175 70% 42%;
+    --sidebar-border: 225 15% 16%;
+    --sidebar-ring: 210 100% 62%;
 
-    --glow-primary: 0 0 20px hsl(175 70% 42% / 0.15);
-    --glow-accent: 0 0 20px hsl(38 90% 55% / 0.15);
+    --glow-primary: 0 0 24px hsl(210 100% 62% / 0.12);
+    --glow-accent: 0 0 24px hsl(38 90% 55% / 0.12);
   }
 }
 
@@ -141,7 +141,6 @@
     font-family: var(--font-display);
   }
 
-  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -160,12 +159,13 @@
 
 @layer components {
   .stat-card {
-    @apply rounded-lg border bg-card p-5 transition-all duration-300;
+    @apply rounded-xl border bg-card p-5 transition-all duration-300 relative overflow-hidden;
     box-shadow: var(--glow-primary);
   }
   .stat-card:hover {
     border-color: hsl(var(--primary) / 0.3);
-    box-shadow: 0 0 30px hsl(var(--primary) / 0.1);
+    box-shadow: 0 4px 24px hsl(var(--primary) / 0.12);
+    transform: translateY(-1px);
   }
 
   .stat-value {
@@ -178,11 +178,11 @@
   }
 
   .status-badge {
-    @apply inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border;
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium border;
   }
 
   .dashboard-section {
-    @apply rounded-lg border bg-card p-5;
+    @apply rounded-xl border bg-card p-5 shadow-sm;
   }
 
   .section-title {
@@ -191,16 +191,15 @@
   }
 
   .sheet-tab {
-    @apply px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 cursor-pointer;
+    @apply px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer;
   }
   .sheet-tab-active {
-    @apply bg-primary text-primary-foreground;
+    @apply bg-primary text-primary-foreground shadow-md;
   }
   .sheet-tab-inactive {
     @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
   }
 
-  /* AI response rich rendering */
   .ai-prose h1, .ai-prose h2, .ai-prose h3 {
     font-family: var(--font-display);
     @apply font-semibold text-foreground mt-4 mb-2;

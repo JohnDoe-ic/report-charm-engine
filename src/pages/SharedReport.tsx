@@ -12,6 +12,7 @@ import DataTable from '@/components/DataTable';
 import SheetTabs from '@/components/SheetTabs';
 import DrillDownDrawer, { DrillDownContext } from '@/components/DrillDownDrawer';
 import AiReportPanel from '@/components/AiReportPanel';
+import ExtraCharts from '@/components/ExtraCharts';
 import NewLocationsChart from '@/components/NewLocationsChart';
 import ThemeToggle from '@/components/ThemeToggle';
 import { LayoutDashboard, Loader2, AlertCircle, Home } from 'lucide-react';
@@ -109,11 +110,12 @@ const SharedReport = () => {
           <RegionBreakdown data={filteredData} onDrillDown={handleDrillDown} />
           <FormatChart data={filteredData} onDrillDown={handleDrillDown} />
         </div>
+        <ExtraCharts data={filteredData} onDrillDown={handleDrillDown} />
+        <RegionStatusHeatmap data={filteredData} onDrillDown={handleDrillDown} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <OpeningTimeline data={filteredData} onDrillDown={handleDrillDown} />
-          <RegionStatusHeatmap data={filteredData} onDrillDown={handleDrillDown} />
+          <NewLocationsChart />
         </div>
-        <NewLocationsChart />
         <AiReportPanel data={filteredData} />
         <DataTable data={filteredData} />
       </main>

@@ -9,12 +9,13 @@ interface RegionStatusHeatmapProps {
 }
 
 const STATUS_ORDER: { key: StatusKey; label: string; color: string }[] = [
-  { key: 'open', label: 'Откр', color: 'hsl(140, 55%, 45%)' },
-  { key: 'contract', label: 'Дог', color: 'hsl(175, 70%, 42%)' },
-  { key: 'evaluation', label: 'Оцен', color: 'hsl(38, 90%, 55%)' },
-  { key: 'no-rent', label: 'Нет', color: 'hsl(225, 10%, 40%)' },
-  { key: 'rejected', label: 'Отказ', color: 'hsl(0, 65%, 48%)' },
-  { key: 'other', label: 'Прочее', color: 'hsl(270, 50%, 55%)' },
+  { key: 'open', label: 'Откр', color: 'hsl(var(--status-open))' },
+  { key: 'contract', label: 'Дог', color: 'hsl(var(--status-contract))' },
+  { key: 'approved', label: 'Одобр', color: 'hsl(var(--status-approved))' },
+  { key: 'evaluation', label: 'Оцен', color: 'hsl(var(--status-evaluation))' },
+  { key: 'no-rent', label: 'Нет', color: 'hsl(var(--status-no-rent))' },
+  { key: 'rejected', label: 'Отказ', color: 'hsl(var(--status-rejected))' },
+  { key: 'other', label: 'Прочее', color: 'hsl(var(--status-other))' },
 ];
 
 const RegionStatusHeatmap = ({ data, onDrillDown }: RegionStatusHeatmapProps) => {
@@ -23,7 +24,7 @@ const RegionStatusHeatmap = ({ data, onDrillDown }: RegionStatusHeatmapProps) =>
   data.forEach((d) => {
     if (!d.region) return;
     if (!regionStatusMap.has(d.region)) {
-      regionStatusMap.set(d.region, { open: 0, contract: 0, evaluation: 0, 'no-rent': 0, rejected: 0, other: 0 });
+      regionStatusMap.set(d.region, { open: 0, contract: 0, evaluation: 0, 'no-rent': 0, rejected: 0, approved: 0, other: 0 });
     }
     const entry = regionStatusMap.get(d.region)!;
     const { key } = normalizeStatus(d.status);
@@ -34,7 +35,6 @@ const RegionStatusHeatmap = ({ data, onDrillDown }: RegionStatusHeatmapProps) =>
     .map(([region, counts]) => ({ region, counts, total: Object.values(counts).reduce((a, b) => a + b, 0) }))
     .sort((a, b) => b.total - a.total);
 
-  // Find max for opacity scaling
   const maxVal = Math.max(...regions.flatMap((r) => Object.values(r.counts)), 1);
 
   const handleCellClick = (region: string, statusKey: StatusKey, statusLabel: string) => {
@@ -78,33 +78,33 @@ const RegionStatusHeatmap = ({ data, onDrillDown }: RegionStatusHeatmapProps) =>
           Excel
         </button>
       </div>
-      <div className="overflow-auto max-h-[320px]">
+      <div className="overflow-auto max-h-[360px]">
         <table className="w-full text-xs">
           <thead>
             <tr>
-              <th className="text-left font-display uppercase tracking-wider text-muted-foreground py-1.5 px-2 sticky top-0 bg-card">Регион</th>
+              <th className="text-left font-display uppercase tracking-wider text-muted-foreground py-2 px-2 sticky top-0 bg-card z-10">Регион</th>
               {STATUS_ORDER.map((s) => (
-                <th key={s.key} className="text-center font-display uppercase tracking-wider text-muted-foreground py-1.5 px-1 sticky top-0 bg-card" style={{ color: s.color }}>
+                <th key={s.key} className="text-center font-display uppercase tracking-wider py-2 px-1.5 sticky top-0 bg-card z-10" style={{ color: s.color, fontSize: 10 }}>
                   {s.label}
                 </th>
               ))}
-              <th className="text-center font-display uppercase tracking-wider text-muted-foreground py-1.5 px-2 sticky top-0 bg-card">Σ</th>
+              <th className="text-center font-display uppercase tracking-wider text-muted-foreground py-2 px-2 sticky top-0 bg-card z-10">Σ</th>
             </tr>
           </thead>
           <tbody>
             {regions.map((r) => (
-              <tr key={r.region} className="border-t border-border/30 hover:bg-secondary/30">
-                <td className="py-1.5 px-2 font-medium text-foreground/80 max-w-[120px] truncate">{r.region}</td>
+              <tr key={r.region} className="border-t border-border/30 hover:bg-secondary/40 transition-colors">
+                <td className="py-2 px-2 font-medium text-foreground/80 max-w-[130px] truncate">{r.region}</td>
                 {STATUS_ORDER.map((s) => {
                   const val = r.counts[s.key];
                   const opacity = val > 0 ? Math.max(0.15, val / maxVal) : 0;
                   return (
                     <td
                       key={s.key}
-                      className="text-center py-1.5 px-1 cursor-pointer transition-colors hover:ring-1 hover:ring-primary/30 rounded"
+                      className="text-center py-2 px-1.5 cursor-pointer transition-all hover:ring-1 hover:ring-primary/40 rounded-md font-display font-medium"
                       style={{
-                        backgroundColor: val > 0 ? s.color.replace(')', ` / ${opacity})`) : 'transparent',
-                        color: val > 0 ? s.color : 'hsl(220, 10%, 30%)',
+                        backgroundColor: val > 0 ? `color-mix(in srgb, ${s.color} ${Math.round(opacity * 100)}%, transparent)` : 'transparent',
+                        color: val > 0 ? s.color : 'hsl(var(--muted-foreground))',
                       }}
                       onClick={() => handleCellClick(r.region, s.key, s.label)}
                     >
@@ -112,7 +112,7 @@ const RegionStatusHeatmap = ({ data, onDrillDown }: RegionStatusHeatmapProps) =>
                     </td>
                   );
                 })}
-                <td className="text-center py-1.5 px-2 font-medium text-foreground/60">{r.total}</td>
+                <td className="text-center py-2 px-2 font-display font-bold text-foreground/70">{r.total}</td>
               </tr>
             ))}
           </tbody>

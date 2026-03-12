@@ -1,16 +1,8 @@
-import { SalonLocation, normalizeStatus } from '@/lib/types';
+import { SalonLocation, normalizeStatus, StatusKey } from '@/lib/types';
 import { DrillDownContext } from './DrillDownDrawer';
 import { exportChartToExcel } from '@/lib/chartExport';
 import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { Download } from 'lucide-react';
 
@@ -20,20 +12,35 @@ interface StatusChartProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  'open': 'hsl(140, 55%, 45%)',
-  'contract': 'hsl(175, 70%, 42%)',
-  'evaluation': 'hsl(38, 90%, 55%)',
-  'no-rent': 'hsl(225, 10%, 40%)',
-  'rejected': 'hsl(0, 65%, 48%)',
-  'other': 'hsl(270, 50%, 55%)',
+  open: 'hsl(var(--status-open))',
+  contract: 'hsl(var(--status-contract))',
+  evaluation: 'hsl(var(--status-evaluation))',
+  'no-rent': 'hsl(var(--status-no-rent))',
+  rejected: 'hsl(var(--status-rejected))',
+  approved: 'hsl(var(--status-approved))',
+  other: 'hsl(var(--status-other))',
 };
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-popover border border-border rounded-md px-3 py-2 text-sm shadow-lg">
-        <p className="text-foreground font-medium">{payload[0].name}</p>
-        <p className="text-muted-foreground">{payload[0].value} локаций</p>
+      <div className="bg-popover border border-border rounded-lg px-3 py-2 text-sm shadow-xl">
+        <p className="text-foreground font-semibold">{payload[0].name}</p>
+        <p className="text-muted-foreground text-xs">{payload[0].value} локаций ({((payload[0].value / payload[0].payload.total) * 100).toFixed(1)}%)</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+const BarTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-popover border border-border rounded-lg px-3 py-2 text-sm shadow-xl">
+        <p className="text-foreground font-semibold mb-1">{label}</p>
+        {payload.map((p: any) => (
+          <p key={p.dataKey} className="text-muted-foreground text-xs">{p.value} локаций</p>
+        ))}
       </div>
     );
   }
@@ -41,6 +48,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
+  const total = data.length;
   const statusMap = new Map<string, { count: number; key: string }>();
   data.forEach((d) => {
     const { label, key } = normalizeStatus(d.status);
@@ -48,17 +56,22 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
     statusMap.set(label, { count: (existing?.count || 0) + 1, key });
   });
   const statusData = Array.from(statusMap.entries())
-    .map(([name, { count, key }]) => ({ name, value: count, key }))
+    .map(([name, { count, key }]) => ({ name, value: count, key, total }))
     .sort((a, b) => b.value - a.value);
 
-  const cityMap = new Map<string, number>();
+  const cityMap = new Map<string, { count: number; statuses: Record<string, number> }>();
   data.forEach((d) => {
-    if (d.city) cityMap.set(d.city, (cityMap.get(d.city) || 0) + 1);
+    if (!d.city) return;
+    if (!cityMap.has(d.city)) cityMap.set(d.city, { count: 0, statuses: {} });
+    const entry = cityMap.get(d.city)!;
+    entry.count++;
+    const { key } = normalizeStatus(d.status);
+    entry.statuses[key] = (entry.statuses[key] || 0) + 1;
   });
   const cityData = Array.from(cityMap.entries())
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, { count, statuses }]) => ({ name, value: count, ...statuses }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 12);
+    .slice(0, 15);
 
   const handlePieClick = (_: any, index: number) => {
     if (!onDrillDown) return;
@@ -75,38 +88,34 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
     });
   };
 
-  const handleLegendClick = (entry: typeof statusData[0]) => {
-    if (!onDrillDown) return;
-    const rows = data.filter((d) => normalizeStatus(d.status).label === entry.name);
+  const handleBarClick = (barData: any) => {
+    if (!onDrillDown || !barData?.name) return;
+    const rows = data.filter((d) => d.city === barData.name);
     onDrillDown({
-      title: `Статус: ${entry.name}`,
-      description: `Все локации со статусом "${entry.name}"`,
-      columns: [{ axis: 'Категория', field: 'Статус' }],
+      title: `Город: ${barData.name}`,
+      description: `Все локации в городе "${barData.name}"`,
+      columns: [{ axis: 'Y', field: 'Город' }, { axis: 'X', field: 'Количество' }],
       aggregation: 'Количество (count)',
-      filters: [{ field: 'Статус', value: entry.name }],
+      filters: [{ field: 'Город', value: barData.name }],
       rows,
     });
   };
 
-  const handleBarClick = (barData: any) => {
-    if (!onDrillDown || !barData?.name) return;
-    const cityName = barData.name;
-    const rows = data.filter((d) => d.city === cityName);
-    onDrillDown({
-      title: `Город: ${cityName}`,
-      description: `Все локации в городе "${cityName}"`,
-      columns: [{ axis: 'Y', field: 'Город' }, { axis: 'X', field: 'Количество' }],
-      aggregation: 'Количество (count)',
-      filters: [{ field: 'Город', value: cityName }],
-      rows,
-    });
-  };
+  const statusKeys: { key: string; label: string }[] = [
+    { key: 'open', label: 'Открыт' },
+    { key: 'contract', label: 'На договоре' },
+    { key: 'evaluation', label: 'Оценка' },
+    { key: 'no-rent', label: 'Нет аренды' },
+    { key: 'rejected', label: 'Отказ' },
+    { key: 'approved', label: 'Одобрено' },
+    { key: 'other', label: 'Прочее' },
+  ];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="dashboard-section">
         <div className="flex items-center justify-between mb-4">
-          <p className="section-title mb-0">Статусы</p>
+          <p className="section-title mb-0">Распределение статусов</p>
           <button
             type="button"
             onClick={() => exportChartToExcel(statusData.map(s => ({ Статус: s.name, Количество: s.value })), 'statuses')}
@@ -122,9 +131,9 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
               data={statusData}
               cx="50%"
               cy="50%"
-              innerRadius={55}
-              outerRadius={100}
-              paddingAngle={2}
+              innerRadius={60}
+              outerRadius={105}
+              paddingAngle={3}
               dataKey="value"
               strokeWidth={0}
               onClick={handlePieClick}
@@ -137,19 +146,30 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
             <Tooltip content={<CustomTooltip />} />
           </PieChart>
         </ResponsiveContainer>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 justify-center">
           {statusData.map((entry) => (
             <button
               type="button"
               key={entry.name}
               className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLegendClick(entry); }}
+              onClick={() => {
+                if (!onDrillDown) return;
+                const rows = data.filter((d) => normalizeStatus(d.status).label === entry.name);
+                onDrillDown({
+                  title: `Статус: ${entry.name}`,
+                  description: `Все локации со статусом "${entry.name}"`,
+                  columns: [{ axis: 'Категория', field: 'Статус' }],
+                  aggregation: 'Количество (count)',
+                  filters: [{ field: 'Статус', value: entry.name }],
+                  rows,
+                });
+              }}
             >
               <span
-                className="w-2.5 h-2.5 rounded-sm shrink-0"
+                className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: STATUS_COLORS[entry.key] || STATUS_COLORS['other'] }}
               />
-              {entry.name} ({entry.value})
+              {entry.name} <span className="font-display font-semibold">{entry.value}</span>
             </button>
           ))}
         </div>
@@ -157,7 +177,7 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
 
       <div className="dashboard-section">
         <div className="flex items-center justify-between mb-4">
-          <p className="section-title mb-0">Топ городов</p>
+          <p className="section-title mb-0">Топ-15 городов</p>
           <button
             type="button"
             onClick={() => exportChartToExcel(cityData.map(c => ({ Город: c.name, Количество: c.value })), 'top-cities')}
@@ -167,19 +187,15 @@ const StatusChart = ({ data, onDrillDown }: StatusChartProps) => {
             Excel
           </button>
         </div>
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" height={380}>
           <BarChart data={cityData} layout="vertical" margin={{ left: 5, right: 15 }}>
-            <XAxis type="number" tick={{ fill: 'hsl(220,10%,45%)', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis type="category" dataKey="name" width={90} tick={{ fill: 'hsl(220,15%,70%)', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar
-              dataKey="value"
-              fill="hsl(175, 70%, 42%)"
-              radius={[0, 3, 3, 0]}
-              barSize={16}
-              onClick={handleBarClick}
-              style={{ cursor: 'pointer' }}
-            />
+            <XAxis type="number" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="name" width={100} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip content={<BarTooltip />} />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            {statusKeys.map(({ key, label }) => (
+              <Bar key={key} dataKey={key} name={label} stackId="a" fill={STATUS_COLORS[key]} />
+            ))}
           </BarChart>
         </ResponsiveContainer>
       </div>

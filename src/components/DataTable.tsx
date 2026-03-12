@@ -13,12 +13,13 @@ interface DataTableProps {
 }
 
 const statusBadgeStyles: Record<StatusKey, string> = {
-  open: 'bg-[hsl(140,55%,45%,0.15)] text-[hsl(140,55%,55%)] border-[hsl(140,55%,45%,0.3)]',
-  contract: 'bg-[hsl(175,70%,42%,0.15)] text-[hsl(175,70%,52%)] border-[hsl(175,70%,42%,0.3)]',
-  evaluation: 'bg-[hsl(38,90%,55%,0.15)] text-[hsl(38,90%,60%)] border-[hsl(38,90%,55%,0.3)]',
-  'no-rent': 'bg-[hsl(225,10%,40%,0.15)] text-[hsl(225,10%,55%)] border-[hsl(225,10%,40%,0.3)]',
-  rejected: 'bg-[hsl(0,65%,48%,0.15)] text-[hsl(0,65%,58%)] border-[hsl(0,65%,48%,0.3)]',
-  other: 'bg-[hsl(270,50%,55%,0.15)] text-[hsl(270,50%,65%)] border-[hsl(270,50%,55%,0.3)]',
+  open: 'bg-status-open/15 text-status-open border-status-open/30',
+  contract: 'bg-status-contract/15 text-status-contract border-status-contract/30',
+  evaluation: 'bg-status-evaluation/15 text-status-evaluation border-status-evaluation/30',
+  'no-rent': 'bg-status-no-rent/15 text-status-no-rent border-status-no-rent/30',
+  rejected: 'bg-status-rejected/15 text-status-rejected border-status-rejected/30',
+  approved: 'bg-status-approved/15 text-status-approved border-status-approved/30',
+  other: 'bg-status-other/15 text-status-other border-status-other/30',
 };
 
 const DataTable = ({ data }: DataTableProps) => {
@@ -48,6 +49,7 @@ const DataTable = ({ data }: DataTableProps) => {
           d.address.toLowerCase().includes(q) ||
           d.city.toLowerCase().includes(q) ||
           (d.commercialPartner || '').toLowerCase().includes(q) ||
+          (d.comment || '').toLowerCase().includes(q) ||
           (d.district || '').toLowerCase().includes(q)
         );
       }
@@ -109,28 +111,23 @@ const DataTable = ({ data }: DataTableProps) => {
           placeholder="Поиск..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-[160px] h-8 text-xs bg-secondary border-border"
+          className="w-[180px] h-8 text-xs bg-secondary border-border"
         />
       </div>
 
-      <div className="rounded-md border overflow-auto max-h-[450px]">
+      <div className="rounded-lg border overflow-auto max-h-[500px]">
         <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent">
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Регион</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Город/НП</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Район</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Город</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Адрес</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Партнер</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Вероятность</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">КБ региона</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">КЦ</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Согл.</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Формат</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Аренда</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Тип</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Мебель</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Ремонт</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Ст. ремонта</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Статус</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Комментарий</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Дата откр.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -140,20 +137,15 @@ const DataTable = ({ data }: DataTableProps) => {
                 <TableRow key={row.id} className="border-border/50 hover:bg-secondary/50">
                   <TableCell className="text-xs font-medium">{row.region}</TableCell>
                   <TableCell className="text-xs">{row.city}</TableCell>
-                  <TableCell className="text-xs">{row.district}</TableCell>
                   <TableCell className="text-xs max-w-[200px] truncate">{row.address}</TableCell>
-                  <TableCell className="text-xs max-w-[140px] truncate">{row.commercialPartner}</TableCell>
-                  <TableCell className="text-xs">{row.probability}</TableCell>
-                  <TableCell className="text-xs">{row.regionApproval}</TableCell>
-                  <TableCell className="text-xs">{row.kcApproval}</TableCell>
+                  <TableCell className="text-xs max-w-[120px] truncate">{row.commercialPartner}</TableCell>
+                  <TableCell className="text-xs max-w-[100px] truncate">{row.commercialApproval}</TableCell>
                   <TableCell className="text-xs">{row.salonFormat}</TableCell>
                   <TableCell>
                     <span className={`status-badge border ${statusBadgeStyles[key]}`}>{label}</span>
                   </TableCell>
-                  <TableCell className="text-xs">{row.salonType}</TableCell>
-                  <TableCell className="text-xs">{row.furnitureStatus}</TableCell>
-                  <TableCell className="text-xs">{row.repair}</TableCell>
-                  <TableCell className="text-xs">{row.repairStatus}</TableCell>
+                  <TableCell className="text-xs max-w-[200px] truncate text-muted-foreground">{row.comment}</TableCell>
+                  <TableCell className="text-xs">{row.openingDate}</TableCell>
                 </TableRow>
               );
             })}
