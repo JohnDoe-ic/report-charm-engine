@@ -50,7 +50,7 @@ export function parseExcelFile(data: ArrayBuffer): SalonLocation[] {
       
       if (!region && !city) continue;
 
-      const status = getValMulti(row, 'Статус', 'Статус аренды');
+      const status = getValMulti(row, 'Статус аренды', 'Статус');
       
       const loc: SalonLocation = {
         id: `loc-${idCounter++}`,
@@ -58,37 +58,40 @@ export function parseExcelFile(data: ArrayBuffer): SalonLocation[] {
         city,
         district: getValMulti(row, 'Район', 'Район города/НП') || undefined,
         address,
-        commercialPartner: getValMulti(row, 'Коммерческий партнер') || undefined,
-        commercialApproval: getValMulti(row, 'Согласование коммерции', 'Согласование КБ региона', 'Согласование КБ') || undefined,
-        salonFormat: getValMulti(row, 'Формат салона', 'Формат') || '',
-        status: status || 'не указан',
-        comment: getValMulti(row, 'Комментарий', 'Комментари й') || undefined,
-        openingDate: getVal(row, 'Дата открытия') || undefined,
-        // Rent
-        rentDate: getValMulti(row, 'Дата заключения договора на аренду') || undefined,
-        rentAmount: getValMulti(row, 'Сумма, без НДС') || undefined,
-        rentArea: getValMulti(row, 'Арендуемая площадь') || undefined,
-        rentPricePerM: getValMulti(row, 'Стоимость метра, без ндс') || undefined,
-        landlord: getValMulti(row, 'Арендодатель') || undefined,
-        // Repair
-        repairMeasurements: getValMulti(row, 'Замеры', 'Замеры ремонт') || undefined,
-        repairDrawing: getValMulti(row, 'Отрисовка', 'Отрисовка ремонт') || undefined,
-        repairEstimate: getVal(row, 'Получение сметы от подрядчика') || undefined,
-        repairTimeline: getVal(row, 'Сроки ремонта') || undefined,
-        repairFormat: getVal(row, 'Формат ремонта') || undefined,
-        // Furniture
-        furnitureMeasurements: getValMulti(row, 'Замеры5', 'Замеры мебель') || undefined,
-        furnitureDrawing: getValMulti(row, 'Отрисовка4', 'Отрисовка мебель') || undefined,
-        furnitureOrder: getVal(row, 'Заказ') || undefined,
-        // Legacy
+        commercialPartner: getVal(row, 'Коммерческий партнер') || undefined,
         probability: getVal(row, 'Вероятность') || undefined,
         regionApproval: getValMulti(row, 'Согласование КБ региона', 'Согласование КБ') || undefined,
         kcApproval: getVal(row, 'Согласование КЦ') || undefined,
-        rentStatus: status || undefined,
+        commercialApproval: getValMulti(row, 'Согласование коммерции') || undefined,
+        salonFormat: getValMulti(row, 'Формат салона', 'Формат') || '',
+        status: status || 'не указан',
+        generalStatus: getVal(row, 'Статус') || undefined,
         salonType: getVal(row, 'Тип салона') || undefined,
         furnitureStatus: getVal(row, 'Статус мебели') || undefined,
         repair: getVal(row, 'Ремонт') || undefined,
         repairStatus: getValMulti(row, 'Статус ремонт', 'Статус ремонта') || undefined,
+        photoLocation: getVal(row, 'Фото локации') || undefined,
+        comment: getValMulti(row, 'Комментарий', 'Комментари й') || undefined,
+        openingPlan: getVal(row, 'План открытия') || undefined,
+        openingDate: getVal(row, 'Дата открытия') || undefined,
+        // Rent
+        rentDate: getVal(row, 'Дата заключения договора на аренду') || undefined,
+        rentAmount: getValMulti(row, 'Сумма, без НДС') || undefined,
+        rentArea: getVal(row, 'Арендуемая площадь') || undefined,
+        rentPricePerM: getValMulti(row, 'Стоимость метра, без ндс') || undefined,
+        landlord: getVal(row, 'Арендодатель') || undefined,
+        // Repair details
+        repairMeasurements: getValMulti(row, 'Замеры ремонт', 'Замеры') || undefined,
+        repairDrawing: getValMulti(row, 'Отрисовка ремонт', 'Отрисовка') || undefined,
+        repairEstimate: getVal(row, 'Получение сметы от подрядчика') || undefined,
+        repairTimeline: getVal(row, 'Сроки ремонта') || undefined,
+        repairFormat: getVal(row, 'Формат ремонта') || undefined,
+        // Furniture details
+        furnitureMeasurements: getValMulti(row, 'Замеры мебель', 'Замеры5') || undefined,
+        furnitureDrawing: getValMulti(row, 'Отрисовка мебель', 'Отрисовка4') || undefined,
+        furnitureOrder: getVal(row, 'Заказ') || undefined,
+        // Legacy
+        rentStatus: status || undefined,
         sheetName,
       };
 
