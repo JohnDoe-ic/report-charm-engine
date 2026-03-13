@@ -35,7 +35,7 @@ const OpeningTimeline = ({ data, onDrillDown }: OpeningTimelineProps) => {
   const getRawDate = (d: SalonLocation) => (d.openingDate?.trim() || d.openingPlan?.trim() || '');
 
   const parsed = withDate.map((d) => {
-    const raw = d.openingDate!.trim();
+    const raw = getRawDate(d);
     let date: Date | null = null;
     if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
       const [day, month, year] = raw.split('.');
