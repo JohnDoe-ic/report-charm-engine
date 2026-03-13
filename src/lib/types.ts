@@ -5,10 +5,20 @@ export interface SalonLocation {
   district?: string;
   address: string;
   commercialPartner?: string;
+  probability?: string;
+  regionApproval?: string;
+  kcApproval?: string;
   commercialApproval?: string;
   salonFormat: string;
-  status: string;
+  status: string; // Статус аренды (primary status for charts)
+  generalStatus?: string; // Статус (general)
+  salonType?: string;
+  furnitureStatus?: string;
+  repair?: string;
+  repairStatus?: string;
+  photoLocation?: string;
   comment?: string;
+  openingPlan?: string;
   openingDate?: string;
   // Rent details
   rentDate?: string;
@@ -16,25 +26,18 @@ export interface SalonLocation {
   rentArea?: string;
   rentPricePerM?: string;
   landlord?: string;
-  // Repair
+  // Repair details
   repairMeasurements?: string;
   repairDrawing?: string;
   repairEstimate?: string;
   repairTimeline?: string;
   repairFormat?: string;
-  // Furniture
+  // Furniture details
   furnitureMeasurements?: string;
   furnitureDrawing?: string;
   furnitureOrder?: string;
   // Legacy compat
-  probability?: string;
-  regionApproval?: string;
-  kcApproval?: string;
   rentStatus?: string;
-  salonType?: string;
-  furnitureStatus?: string;
-  repair?: string;
-  repairStatus?: string;
   sheetName: string;
 }
 

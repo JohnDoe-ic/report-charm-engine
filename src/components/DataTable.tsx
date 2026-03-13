@@ -26,7 +26,7 @@ const DataTable = ({ data }: DataTableProps) => {
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [cityFilter, setCityFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [formatFilter, setFormatFilter] = useState<string>('all');
+  const [probFilter, setProbFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const regions = useMemo(() => [...new Set(data.map((d) => d.region).filter(Boolean))].sort(), [data]);
@@ -35,14 +35,14 @@ const DataTable = ({ data }: DataTableProps) => {
     return [...new Set(filtered.map((d) => d.city).filter(Boolean))].sort();
   }, [data, regionFilter]);
   const statuses = useMemo(() => [...new Set(data.map((d) => normalizeStatus(d.status).label))].sort(), [data]);
-  const formats = useMemo(() => [...new Set(data.map((d) => d.salonFormat).filter(Boolean))].sort(), [data]);
+  const probs = useMemo(() => [...new Set(data.map((d) => d.probability).filter(Boolean))].sort() as string[], [data]);
 
   const filtered = useMemo(() => {
     return data.filter((d) => {
       if (regionFilter !== 'all' && d.region !== regionFilter) return false;
       if (cityFilter !== 'all' && d.city !== cityFilter) return false;
       if (statusFilter !== 'all' && normalizeStatus(d.status).label !== statusFilter) return false;
-      if (formatFilter !== 'all' && d.salonFormat !== formatFilter) return false;
+      if (probFilter !== 'all' && d.probability !== probFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
@@ -55,7 +55,7 @@ const DataTable = ({ data }: DataTableProps) => {
       }
       return true;
     });
-  }, [data, regionFilter, cityFilter, statusFilter, formatFilter, searchQuery]);
+  }, [data, regionFilter, cityFilter, statusFilter, probFilter, searchQuery]);
 
   return (
     <div className="dashboard-section">
@@ -97,13 +97,13 @@ const DataTable = ({ data }: DataTableProps) => {
           </SelectContent>
         </Select>
 
-        <Select value={formatFilter} onValueChange={setFormatFilter}>
+        <Select value={probFilter} onValueChange={setProbFilter}>
           <SelectTrigger className="w-[140px] h-8 text-xs bg-secondary border-border">
-            <SelectValue placeholder="Формат" />
+            <SelectValue placeholder="Вероятность" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Все форматы</SelectItem>
-            {formats.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+            <SelectItem value="all">Все</SelectItem>
+            {probs.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
           </SelectContent>
         </Select>
 
@@ -123,11 +123,15 @@ const DataTable = ({ data }: DataTableProps) => {
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Город</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Адрес</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Партнер</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Согл.</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Вероятн.</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">КБ</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">КЦ</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Формат</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Статус</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Тип</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Мебель</TableHead>
+              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Ремонт</TableHead>
               <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Комментарий</TableHead>
-              <TableHead className="sticky top-0 bg-card text-xs font-display uppercase tracking-wider text-muted-foreground">Дата откр.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -139,13 +143,17 @@ const DataTable = ({ data }: DataTableProps) => {
                   <TableCell className="text-xs">{row.city}</TableCell>
                   <TableCell className="text-xs max-w-[200px] truncate">{row.address}</TableCell>
                   <TableCell className="text-xs max-w-[120px] truncate">{row.commercialPartner}</TableCell>
-                  <TableCell className="text-xs max-w-[100px] truncate">{row.commercialApproval}</TableCell>
+                  <TableCell className="text-xs">{row.probability}</TableCell>
+                  <TableCell className="text-xs max-w-[80px] truncate">{row.regionApproval}</TableCell>
+                  <TableCell className="text-xs max-w-[80px] truncate">{row.kcApproval}</TableCell>
                   <TableCell className="text-xs">{row.salonFormat}</TableCell>
                   <TableCell>
                     <span className={`status-badge border ${statusBadgeStyles[key]}`}>{label}</span>
                   </TableCell>
+                  <TableCell className="text-xs">{row.salonType}</TableCell>
+                  <TableCell className="text-xs max-w-[80px] truncate">{row.furnitureStatus}</TableCell>
+                  <TableCell className="text-xs max-w-[80px] truncate">{row.repairStatus || row.repair}</TableCell>
                   <TableCell className="text-xs max-w-[200px] truncate text-muted-foreground">{row.comment}</TableCell>
-                  <TableCell className="text-xs">{row.openingDate}</TableCell>
                 </TableRow>
               );
             })}

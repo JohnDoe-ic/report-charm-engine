@@ -45,10 +45,12 @@ const DrillDownDrawer = ({ open, onOpenChange, context }: DrillDownDrawerProps) 
 
   const handleExportCSV = () => {
     if (!context) return;
-    const headers = ['Регион', 'Город', 'Адрес', 'Партнер', 'Формат', 'Статус', 'Комментарий', 'Лист'];
+    const headers = ['Регион', 'Город', 'Адрес', 'Партнер', 'Вероятность', 'КБ', 'КЦ', 'Формат', 'Статус', 'Тип', 'Мебель', 'Ремонт', 'Комментарий', 'Лист'];
     const csvRows = context.rows.map((r) => [
-      r.region, r.city, r.address, r.commercialPartner || '',
-      r.salonFormat, normalizeStatus(r.status).label, r.comment || '', r.sheetName,
+      r.region, r.city, r.address, r.commercialPartner || '', r.probability || '',
+      r.regionApproval || '', r.kcApproval || '', r.salonFormat, normalizeStatus(r.status).label,
+      r.salonType || '', r.furnitureStatus || '', r.repairStatus || r.repair || '',
+      r.comment || '', r.sheetName,
     ]);
     const csv = [headers, ...csvRows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -111,6 +113,7 @@ const DrillDownDrawer = ({ open, onOpenChange, context }: DrillDownDrawerProps) 
                     <TableHead className="sticky top-0 bg-card text-xs font-display">Регион</TableHead>
                     <TableHead className="sticky top-0 bg-card text-xs font-display">Город</TableHead>
                     <TableHead className="sticky top-0 bg-card text-xs font-display">Адрес</TableHead>
+                    <TableHead className="sticky top-0 bg-card text-xs font-display">Вероятн.</TableHead>
                     <TableHead className="sticky top-0 bg-card text-xs font-display">Формат</TableHead>
                     <TableHead className="sticky top-0 bg-card text-xs font-display">Статус</TableHead>
                   </TableRow>
@@ -123,6 +126,7 @@ const DrillDownDrawer = ({ open, onOpenChange, context }: DrillDownDrawerProps) 
                         <TableCell className="text-xs">{row.region}</TableCell>
                         <TableCell className="text-xs">{row.city}</TableCell>
                         <TableCell className="text-xs max-w-[180px] truncate">{row.address}</TableCell>
+                        <TableCell className="text-xs">{row.probability}</TableCell>
                         <TableCell className="text-xs">{row.salonFormat}</TableCell>
                         <TableCell>
                           <span className={`status-badge border ${statusBadgeStyles[key]}`}>{label}</span>

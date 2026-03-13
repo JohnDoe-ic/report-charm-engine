@@ -29,10 +29,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const OpeningTimeline = ({ data, onDrillDown }: OpeningTimelineProps) => {
   const dateMap = new Map<string, { count: number; cumulative: number }>();
-  const withDate = data.filter((d) => d.openingDate && d.openingDate.trim());
+  const withDate = data.filter((d) => (d.openingDate && d.openingDate.trim()) || (d.openingPlan && d.openingPlan.trim()));
+
+  // Use openingPlan as fallback for openingDate
+  const getRawDate = (d: SalonLocation) => (d.openingDate?.trim() || d.openingPlan?.trim() || '');
 
   const parsed = withDate.map((d) => {
-    const raw = d.openingDate!.trim();
+    const raw = getRawDate(d);
     let date: Date | null = null;
     if (/^\d{2}\.\d{2}\.\d{4}$/.test(raw)) {
       const [day, month, year] = raw.split('.');
