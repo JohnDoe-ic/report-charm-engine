@@ -1,5 +1,5 @@
 import { SalonLocation, normalizeStatus, StatusKey } from '@/lib/types';
-import { Building2, MapPin, CheckCircle, FileCheck, Search, XCircle, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Building2, MapPin, CheckCircle, FileCheck, Search, XCircle, ShieldCheck, TrendingUp, Percent, Sofa } from 'lucide-react';
 
 interface StatCardsProps {
   data: SalonLocation[];
@@ -12,8 +12,8 @@ const StatCards = ({ data }: StatCardsProps) => {
   const openCount = data.filter((d) => normalizeStatus(d.status).key === 'open').length;
   const contractCount = data.filter((d) => normalizeStatus(d.status).key === 'contract').length;
   const evaluationCount = data.filter((d) => normalizeStatus(d.status).key === 'evaluation').length;
-  const rejectedCount = data.filter((d) => normalizeStatus(d.status).key === 'rejected').length;
-  const noRentCount = data.filter((d) => normalizeStatus(d.status).key === 'no-rent').length;
+  const highProb = data.filter((d) => d.probability?.toLowerCase() === 'высокая').length;
+  const withFurniture = data.filter((d) => d.furnitureStatus && d.furnitureStatus.toLowerCase() !== 'нет').length;
 
   const cards = [
     { label: 'Локаций', value: total, icon: Building2, color: 'var(--primary)' },
@@ -22,8 +22,8 @@ const StatCards = ({ data }: StatCardsProps) => {
     { label: 'Открыто', value: openCount, icon: CheckCircle, color: 'var(--status-open)' },
     { label: 'На договоре', value: contractCount, icon: FileCheck, color: 'var(--status-contract)' },
     { label: 'Оценка', value: evaluationCount, icon: Search, color: 'var(--status-evaluation)' },
-    { label: 'Нет аренды', value: noRentCount, icon: XCircle, color: 'var(--status-no-rent)' },
-    { label: 'Отказ', value: rejectedCount, icon: ShieldCheck, color: 'var(--status-rejected)' },
+    { label: 'Выс. вероятн.', value: highProb, icon: Percent, color: 'var(--chart-2)' },
+    { label: 'С мебелью', value: withFurniture, icon: Sofa, color: 'var(--chart-5)' },
   ];
 
   return (
